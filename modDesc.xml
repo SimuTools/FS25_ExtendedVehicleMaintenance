@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
-<modDesc descVersion="107">
+<modDesc descVersion="108">
     <author>SimuTools</author>
     <version>1.0.0.0</version>
 
@@ -15,6 +15,7 @@ Extended Vehicle Maintenance adds a realistic maintenance and repair system to F
 Drivable machines require regular maintenance based on their operating hours. To open the maintenance menu, stand next to the machine you want to service and press CTRL + M. Maintenance and repairs can then be started through the custom service menu.
 While a machine is in service, it cannot be used, started or driven. Different service options are available: sending a machine to the workshop takes longer, calling a technician is the most expensive option, and self-repair is the cheapest option but takes the longest to complete.
 The mod also includes realistic malfunctions such as engine problems, flat tires, RPM/emergency-mode failures and battery-related faults. Overdue machines can become unreliable and may fail during operation.
+In addition, Extended Vehicle Maintenance includes a collision damage system. Strong impacts can damage vehicles depending on the collision speed, making careful driving and realistic vehicle handling more important.
 The default instant repair workflow is replaced by a more immersive service system for realistic multiplayer and long-term gameplay.
 
 If you have any feedback or encounter any errors, please feel free to contact us here:
@@ -25,6 +26,7 @@ Extended Vehicle Maintenance fügt dem Landwirtschafts-Simulator 25 ein realisti
 Fahrbare Maschinen benötigen regelmäßige Wartung auf Basis ihrer Betriebsstunden. Um das Wartungsmenü zu öffnen, musst du neben der Maschine stehen, die du warten möchtest, und STRG + M drücken. Wartungen und Reparaturen können anschließend über das eigene Servicemenü gestartet werden.
 Während sich eine Maschine im Service befindet, kann sie nicht benutzt, gestartet oder gefahren werden. Es stehen verschiedene Service-Optionen zur Verfügung: Das Einschicken zur Werkstatt dauert länger, der Techniker vor Ort ist die teuerste Variante, und die Selbstreparatur ist am günstigsten, dauert dafür aber am längsten.
 Zusätzlich enthält die Mod realistische Defekte wie Motorprobleme, platte Reifen, Notlauf-/Drehzahlprobleme und batteriebezogene Störungen. Überfällige Maschinen können unzuverlässig werden und während der Arbeit ausfallen.
+Außerdem enthält Extended Vehicle Maintenance ein Kollisionsschadenssystem. Stärkere Zusammenstöße können Fahrzeuge abhängig von der Aufprallgeschwindigkeit beschädigen, wodurch vorsichtiges Fahren und realistischer Umgang mit Maschinen wichtiger werden.
 Das normale Sofort-Reparatursystem wird durch ein immersiveres Wartungssystem für realistisches Multiplayer- und Langzeitspiel ersetzt.
 
 Bei Feedback oder Fehlern, melde dich gerne hier:
