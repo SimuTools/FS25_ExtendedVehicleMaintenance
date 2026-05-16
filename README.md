@@ -12,6 +12,8 @@ Extended Vehicle Maintenance also includes a malfunction system. Machines can su
 
 A battery simulation is included as well. Batteries can discharge when electrical consumers are active and recharge while the engine is running.
 
+Extended Vehicle Maintenance also includes a collision damage system. Strong impacts can damage vehicles depending on the collision speed, making careful driving and realistic vehicle handling more important.
+
 ## Features
 
 - Realistic maintenance system for drivable machines
@@ -20,6 +22,7 @@ A battery simulation is included as well. Batteries can discharge when electrica
 - Different service options: workshop, technician and self-repair
 - Malfunction system with multiple failure types
 - Battery charging and discharging simulation
+- Collision damage system based on impact speed
 - HUD for maintenance and vehicle condition information
 - Configurable HUD size and position
 - Multiplayer/server support
@@ -70,6 +73,14 @@ Some malfunctions can limit how a machine behaves, reduce reliability or prevent
 The battery system simulates basic charging and discharging behavior.
 
 Electrical consumers can slowly drain the battery when the engine is off, while running the engine can recharge it. This makes parked or poorly managed machines feel more realistic over time.
+
+## Collision Damage
+
+Extended Vehicle Maintenance includes a collision damage system for drivable machines.
+
+Strong impacts can cause vehicle damage depending on the collision speed. This makes careless driving, crashes and hard impacts more noticeable and adds another realistic consequence to machine handling.
+
+The system is designed to make vehicle damage feel more connected to actual gameplay instead of only relying on regular wear and maintenance.
 
 ## Console Commands
 
