@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
-<modDesc descVersion="108">
+<modDesc descVersion="107">
     <author>SimuTools</author>
     <version>1.0.0.0</version>
 
@@ -16,7 +16,7 @@ Vehicles and implements require regular maintenance based on their operating hou
 Different service options are available: sending a machine to the workshop takes longer, calling a technician is the most expensive option, and self-repair is the cheapest option but takes the longest to complete.
 The mod also includes realistic malfunctions such as engine problems, flat tires, hydraulic issues, brake problems and battery-related faults. Overdue machines can become unreliable and may fail during operation.
 The default instant repair workflow is replaced by a more immersive service system for realistic multiplayer and long-term gameplay.
-    ]]></en>
+If you have any feedback or encounter any errors, please feel free to contact us here: https://github.com/SimuTools/FS25_ExtendedVehicleMaintenance]]></en>
 
     <de><![CDATA[
 Extended Vehicle Maintenance fügt dem Landwirtschafts-Simulator 25 ein realistisches Wartungs- und Reparatursystem hinzu.
@@ -25,7 +25,7 @@ Fahrzeuge und Geräte benötigen regelmäßige Wartung auf Basis ihrer Betriebss
 Es stehen verschiedene Service-Optionen zur Verfügung: Das Einschicken zur Werkstatt dauert länger, der Techniker vor Ort ist die teuerste Variante, und die Selbstreparatur ist am günstigsten, dauert dafür aber am längsten.
 Zusätzlich enthält die Mod realistische Defekte wie Motorprobleme, platte Reifen, Hydraulikfehler, Bremsprobleme und batteriebezogene Störungen. Überfällige Maschinen können unzuverlässig werden und während der Arbeit ausfallen.
 Das normale Sofort-Reparatursystem wird durch ein immersiveres Wartungssystem für realistisches Multiplayer- und Langzeitspiel ersetzt.
-    ]]></de>
+Bei Feedback oder Fehlern, melde dich gerne hier: https://github.com/SimuTools/FS25_ExtendedVehicleMaintenance]]></de>
 </description>
 
     <iconFilename>icon_ExtendedVehicleMaintenance.dds</iconFilename>
