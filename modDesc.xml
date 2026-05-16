@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<modDesc descVersion="108">
+    <author>SimuTools</author>
+    <version>1.0.0.0</version>
+
+    <title>
+        <en>Extended Vehicle Maintenance</en>
+        <de>Erweiterte Fahrzeugwartung</de>
+    </title>
+
+<description>
+    <en><![CDATA[
+Extended Vehicle Maintenance adds a realistic maintenance and repair system to Farming Simulator 25.
+
+Vehicles and implements require regular maintenance based on their operating hours. Maintenance and repairs can be started through a custom workshop menu. While a machine is in service, it cannot be used, started or driven.
+Different service options are available: sending a machine to the workshop takes longer, calling a technician is the most expensive option, and self-repair is the cheapest option but takes the longest to complete.
+The mod also includes realistic malfunctions such as engine problems, flat tires, hydraulic issues, brake problems and battery-related faults. Overdue machines can become unreliable and may fail during operation.
+The default instant repair workflow is replaced by a more immersive service system for realistic multiplayer and long-term gameplay.
+    ]]></en>
+
+    <de><![CDATA[
+Extended Vehicle Maintenance fügt dem Landwirtschafts-Simulator 25 ein realistisches Wartungs- und Reparatursystem hinzu.
+
+Fahrzeuge und Geräte benötigen regelmäßige Wartung auf Basis ihrer Betriebsstunden. Wartungen und Reparaturen können über ein eigenes Werkstattmenü gestartet werden. Während sich eine Maschine im Service befindet, kann sie nicht benutzt, gestartet oder gefahren werden.
+Es stehen verschiedene Service-Optionen zur Verfügung: Das Einschicken zur Werkstatt dauert länger, der Techniker vor Ort ist die teuerste Variante, und die Selbstreparatur ist am günstigsten, dauert dafür aber am längsten.
+Zusätzlich enthält die Mod realistische Defekte wie Motorprobleme, platte Reifen, Hydraulikfehler, Bremsprobleme und batteriebezogene Störungen. Überfällige Maschinen können unzuverlässig werden und während der Arbeit ausfallen.
+Das normale Sofort-Reparatursystem wird durch ein immersiveres Wartungssystem für realistisches Multiplayer- und Langzeitspiel ersetzt.
+    ]]></de>
+</description>
+
+    <iconFilename>icon_ExtendedVehicleMaintenance.dds</iconFilename>
+    <multiplayer supported="true"/>
+
+    <actions>
+        <action name="EVM_OPEN_SERVICE" category="PLAYER"/>
+        <action name="EVM_CHARGE_BATTERY" category="PLAYER"/>
+        <action name="EVM_QUICK_FIX" category="PLAYER"/>
+        <action name="EVM_LIMP_HOME" category="PLAYER"/>
+    </actions>
+
+    <inputBinding>
+        <actionBinding action="EVM_OPEN_SERVICE">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_m"/>
+        </actionBinding>
+        <actionBinding action="EVM_OPEN_SERVICE">
+            <binding device="GAMEPAD" input="BUTTON_X"/>
+        </actionBinding>
+        <actionBinding action="EVM_CHARGE_BATTERY">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_b"/>
+        </actionBinding>
+        <actionBinding action="EVM_CHARGE_BATTERY">
+            <binding device="GAMEPAD" input="BUTTON_Y"/>
+        </actionBinding>
+        <actionBinding action="EVM_QUICK_FIX">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_r"/>
+        </actionBinding>
+        <actionBinding action="EVM_LIMP_HOME">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_l"/>
+        </actionBinding>
+    </inputBinding>
+
+    <extraSourceFiles>
+        <sourceFile filename="scripts/ExtendedVehicleMaintenance.lua"/>
+    </extraSourceFiles>
+
+    <l10n>
+        <text name="input_EVM_OPEN_SERVICE"><en>Service menu</en><de>Service-Menü</de></text>
+        <text name="input_EVM_CHARGE_BATTERY"><en>Charge battery</en><de>Batterie laden</de></text>
+        <text name="input_EVM_QUICK_FIX"><en>Quick fix</en><de>Vor-Ort-Reparatur</de></text>
+        <text name="input_EVM_LIMP_HOME"><en>Continue with limp mode</en><de>Mit Notlauf weiterfahren</de></text>
+        <text name="action_evm_quickFixOffer"><en>Quick fix: %s (€%d, %d sec)</en><de>Vor-Ort: %s (€%d, %d Sek)</de></text>
+        <text name="action_evm_limpHomeOffer"><en>Continue (reduced effects, %d min)</en><de>Weiterfahren (reduziert, %d Min)</de></text>
+        <text name="info_evm_quickFixDone"><en>Quick fix applied</en><de>Vor-Ort-Reparatur abgeschlossen</de></text>
+        <text name="info_evm_limpHomeDone"><en>Limp home enabled - reduced effects</en><de>Notlauf aktiv - reduzierte Wirkung</de></text>
+        <text name="warning_evmCriticalNoSelfRepair"><en>Critical failure - workshop or technician required</en><de>Schwere Panne: Werkstatt oder Techniker erforderlich</de></text>
+        <text name="hud_severity_minor"><en>Minor</en><de>Leicht</de></text>
+        <text name="hud_severity_major"><en>Major</en><de>Schwer</de></text>
+        <text name="hud_severity_critical"><en>Critical</en><de>Kritisch</de></text>
+        <text name="action_evm_chargeBattery"><en>Charge battery (%s, %s, %d min)</en><de>Batterie laden (%s, %s, %d Min)</de></text>
+        <text name="action_evm_chargeBatteryStarted"><en>Battery charging on %s for %d minutes</en><de>Batterie wird auf %s für %d Minuten geladen</de></text>
+        <text name="action_evm_chargeBatteryNotNeeded"><en>Battery already full on %s</en><de>Batterie auf %s ist bereits voll</de></text>
+        <text name="action_evm_openMenu"><en>%s service options</en><de>%s Serviceoptionen</de></text>
+        <text name="action_evm_noTargets"><en>No vehicle nearby</en><de>Kein Fahrzeug in der Nähe</de></text>
+        <text name="action_evm_notInWorkshop"><en>Go near a vehicle</en><de>Gehe an ein Fahrzeug</de></text>
+        <text name="action_evm_serviceRunning"><en>Maintenance running: %d h %d min</en><de>Wartung läuft: %d h %d min</de></text>
+        <text name="action_evm_workshopBusy"><en>Maintenance already running</en><de>Wartung läuft bereits</de></text>
+        <text name="help_evmInServiceCountdownLong"><en>%s in maintenance: %d h %02d min remaining</en><de>%s in Wartung: noch %d Std. %02d Min.</de></text>
+        <text name="help_evmInServiceCountdownShort"><en>%s in maintenance: %d min remaining</en><de>%s in Wartung: noch %d Min.</de></text>
+
+        <text name="info_evm_serviceLabel"><en>Maintenance</en><de>Wartung</de></text>
+        <text name="info_evm_serviceRunning"><en>%d h %d min remaining</en><de>Noch %d h %d min</de></text>
+        <text name="info_evm_remaining"><en>%1.1f h / %1.1f d remaining</en><de>Noch %1.1f h / %1.1f T</de></text>
+
+        <text name="warning_evmInService"><en>Vehicle is in maintenance</en><de>Fahrzeug ist in Wartung</de></text>
+        <text name="warning_evmInServiceCountdown"><en>Maintenance running: %d h %d min</en><de>Wartung läuft: %d h %d min</de></text>
+        <text name="warning_evmDue"><en>Maintenance required!</en><de>Wartung erforderlich!</de></text>
+        <text name="warning_evmSoon"><en>Maintenance soon: %1.1f h / %1.1f d</en><de>Wartung bald: %1.1f h / %1.1f T</de></text>
+        <text name="warning_evmWorkshopReady"><en>Service available: press Ctrl + M</en><de>Service verfügbar: Drücke Strg + M</de></text>
+        <text name="warning_evmEnterStatus"><en>Next service in %1.1f h / %1.1f d</en><de>Nächster Service in %1.1f h / %1.1f T</de></text>
+        <text name="warning_evmFailureEngine"><en>Engine failure</en><de>Motorpanne</de></text>
+        <text name="warning_evmFailureFlatTire"><en>Flat tire</en><de>Reifenpanne</de></text>
+        <text name="warning_evmFailureRpmLimit"><en>Engine limp mode</en><de>Motor im Notlauf</de></text>
+        <text name="warning_evmFailureHydraulic"><en>Hydraulic leak – implement losing pressure!</en><de>Hydraulikleck: Gerät verliert Druck!</de></text>
+        <text name="warning_evmFailureBrake"><en>Brake fault – reduced braking!</en><de>Bremsdefekt: Bremswirkung reduziert!</de></text>
+        <text name="warning_evmHydraulicLeak"><en>Hydraulic leak – implement losing pressure!</en><de>Hydraulikleck: Gerät verliert Druck!</de></text>
+        <text name="warning_evmBrakeFault"><en>Brake fault – reduced braking!</en><de>Bremsdefekt: Bremswirkung reduziert!</de></text>
+        <text name="warning_evmFailureBattery"><en>Dead battery – engine won't start!</en><de>Batterie leer: Motor startet nicht!</de></text>
+        <text name="hud_lamp_battery"><en>Battery</en><de>Batterie</de></text>
+        <!-- HUD -->
+        <text name="hud_operatingH"><en>Op. Hours</en><de>Betrieb</de></text>
+        <text name="hud_inService"><en>Service</en><de>Wartung</de></text>
+        <text name="hud_serviceDue"><en>⚠ Service due!</en><de>⚠ Wartung fällig!</de></text>
+        <text name="hud_serviceSoon"><en>Service soon</en><de>Wartung bald</de></text>
+        <text name="hud_nextService"><en>Next service</en><de>Nächster Service</de></text>
+        <text name="hud_lamp_engine"><en>Engine</en><de>Motor</de></text>
+        <text name="hud_lamp_tire"><en>Tire</en><de>Reifen</de></text>
+        <text name="hud_lamp_rpm"><en>Limp</en><de>Notlauf</de></text>
+        <text name="hud_lamp_hydraulic"><en>Hydraulics</en><de>Hydraulik</de></text>
+        <text name="hud_lamp_brake"><en>Brakes</en><de>Bremse</de></text>
+        <text name="hud_lamp_service"><en>Service!</en><de>Wartung!</de></text>
+        <text name="hud_lamp_soon"><en>Soon</en><de>Bald</de></text>
+        <text name="warning_evmCollision"><en>Collision! +%d%% damage</en><de>Kollision! +%d%% Schaden</de></text>
+        <text name="warning_evmRpmLimited"><en>Limp mode: RPM limited to max. %d rpm</en><de>Notlauf: Drehzahl auf max. %d U/min begrenzt</de></text>
+        <text name="info_evm_failureLabel"><en>Failure</en><de>Defekt</de></text>
+
+        <text name="ui_evm_title"><en>Service</en><de>Service</de></text>
+        <text name="ui_evm_vehicle"><en>Vehicle</en><de>Fahrzeug</de></text>
+        <text name="ui_evm_damage"><en>Damage</en><de>Schaden</de></text>
+        <text name="ui_evm_remaining"><en>Remaining</en><de>Verbleibend</de></text>
+        <text name="ui_evm_add"><en>Added by service</en><de>Durch Wartung</de></text>
+        <text name="ui_evm_cost"><en>Cost</en><de>Kosten</de></text>
+        <text name="ui_evm_duration"><en>Duration</en><de>Dauer</de></text>
+
+        <text name="ui_evm_option"><en>Option</en><de>Option</de></text>
+        <text name="ui_evm_targets"><en>Option</en><de>Option</de></text>
+        <text name="ui_evm_select"><en>Select option</en><de>Option wählen</de></text>
+        <text name="ui_evm_noTargets"><en>No vehicle nearby</en><de>Kein Fahrzeug in der Nähe</de></text>
+
+        <text name="fa_bid_title"><en>Service</en><de>Service</de></text>
+        <text name="ui_evm_mode_workshop"><en>Send to workshop</en><de>Zur Werkstatt schicken</de></text>
+        <text name="ui_evm_mode_technician"><en>Call technician</en><de>Techniker rufen</de></text>
+        <text name="ui_evm_sendWorkshop"><en>Send to workshop</en><de>Zur Werkstatt</de></text>
+        <text name="ui_evm_callTechnician"><en>Call technician</en><de>Techniker schicken</de></text>
+        <text name="ui_evm_selfRepair"><en>Repair yourself</en><de>Selbst reparieren</de></text>
+        <text name="warning_evmServiceFinished"><en>%s was serviced and repaired</en><de>%s wurde gewartet und repariert</de></text>
+        <text name="help_evmInServiceCountdownSeconds"><en>%s in maintenance: %d sec remaining</en><de>%s in Wartung: noch %d Sek.</de></text>
+    </l10n>
+
+    <specializations>
+        <specialization name="extendedVehicleMaintenance" className="ExtendedVehicleMaintenance" filename="scripts/ExtendedVehicleMaintenance.lua"/>
+    </specializations>
+</modDesc>

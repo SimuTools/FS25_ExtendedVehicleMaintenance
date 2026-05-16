@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<GUI onOpen="onOpen" onClose="onClose" onCreate="onCreate">
+    <GuiElement profile="newLayer"/>
+    <Bitmap profile="dialogFullscreenBg" id="dialogBg"/>
+
+    <GuiElement profile="fs25_productionStorageDialogBg_evm" id="dialogElement">
+        <ThreePartBitmap profile="fs25_dialogBgMiddleSmall"/>
+        <ThreePartBitmap profile="fs25_dialogBgTopSmall"/>
+        <ThreePartBitmap profile="fs25_dialogBgBottom"/>
+
+        <GuiElement profile="fs25_dialogContentContainer">
+            <Text profile="fs25_dialogTitle" id="dialogTitleElement" text="$l10n_ui_evm_title" position="0px -35px"/>
+
+            <GuiElement profile="fs25_dialogSettingsBoxContainer_evm">
+                <Bitmap profile="fs25_previewBox_evm">
+                    <Text profile="fs25_previewLabel_evm_row1" text="$l10n_ui_evm_vehicle"/>
+                    <Text profile="fs25_previewValue_evm_row1" id="vehicleValueText" text="-"/>
+
+                    <Text profile="fs25_previewLabel_evm_row2" text="$l10n_ui_evm_damage"/>
+                    <Text profile="fs25_previewValue_evm_row2" id="damageValueText" text="-"/>
+
+                    <Text profile="fs25_previewLabel_evm_row3" text="$l10n_ui_evm_cost"/>
+                    <Text profile="fs25_previewValue_evm_row3" id="costValueText" text="-"/>
+
+                    <Text profile="fs25_previewLabel_evm_row4" text="$l10n_ui_evm_duration"/>
+                    <Text profile="fs25_previewValue_evm_row4" id="durationValueText" text="-"/>
+
+                    <Text profile="fs25_previewLabel_evm_row5" text="Option"/>
+                    <Text profile="fs25_previewValue_evm_row5" id="optionValueText" text="-"/>
+                </Bitmap>
+
+<Bitmap profile="fs25_multiTextOptionContainer_evm">
+    <MultiTextOption
+        profile="fs25_settingsMultiTextOption_evm"
+        id="serviceModeElement">
+    </MultiTextOption>
+</Bitmap>
+            </GuiElement>
+        </GuiElement>
+
+        <BoxLayout profile="fs25_dialogButtonBox" id="buttonsPC">
+            <Button profile="buttonOK" text="$l10n_button_ok" onClick="onClickOk" id="yesButton"/>
+            <Bitmap profile="fs25_dialogButtonBoxSeparator"/>
+            <Button profile="buttonBack" text="$l10n_button_back" onClick="onClickBack" id="noButton"/>
+        </BoxLayout>
+    </GuiElement>
+
+    <GUIProfiles>
+        <Profile name="fs25_productionStorageDialogBg_evm" extends="fs25_dialogBg">
+            <size value="760px 560px"/>
+        </Profile>
+
+        <Profile name="fs25_dialogSettingsBoxContainer_evm" extends="emptyPanel" with="anchorTopCenter">
+            <position value="0px -360px"/>
+            <size value="680px 400px"/>
+        </Profile>
+
+        <Profile name="fs25_previewBox_evm" extends="baseReference" with="anchorTopCenter">
+            <position value="0px 70px"/>
+            <size value="500px 180px"/>
+            <imageColor value="$preset_colorTransparent"/>
+        </Profile>
+
+        <Profile name="fs25_previewLabelBase_evm" extends="fs25_textDefault" with="anchorTopLeft">
+            <size value="260px 24px"/>
+            <textSize value="18px"/>
+            <textBold value="true"/>
+            <textAlignment value="left"/>
+            <textColor value="1 1 1 0.82"/>
+        </Profile>
+
+        <Profile name="fs25_previewValueBase_evm" extends="fs25_textDefault" with="anchorTopLeft">
+            <size value="220px 24px"/>
+            <textSize value="18px"/>
+            <textBold value="true"/>
+            <textAlignment value="right"/>
+            <textColor value="1 1 1 1"/>
+        </Profile>
+
+        <Profile name="fs25_previewLabel_evm_row1" extends="fs25_previewLabelBase_evm"><position value="0px 0px"/></Profile>
+        <Profile name="fs25_previewValue_evm_row1" extends="fs25_previewValueBase_evm"><position value="280px 0px"/></Profile>
+
+        <Profile name="fs25_previewLabel_evm_row2" extends="fs25_previewLabelBase_evm"><position value="0px 32px"/></Profile>
+        <Profile name="fs25_previewValue_evm_row2" extends="fs25_previewValueBase_evm"><position value="280px 32px"/></Profile>
+
+        <Profile name="fs25_previewLabel_evm_row3" extends="fs25_previewLabelBase_evm"><position value="0px 64px"/></Profile>
+        <Profile name="fs25_previewValue_evm_row3" extends="fs25_previewValueBase_evm"><position value="280px 64px"/></Profile>
+
+        <Profile name="fs25_previewLabel_evm_row4" extends="fs25_previewLabelBase_evm"><position value="0px 96px"/></Profile>
+        <Profile name="fs25_previewValue_evm_row4" extends="fs25_previewValueBase_evm"><position value="280px 96px"/></Profile>
+
+        <Profile name="fs25_previewLabel_evm_row5" extends="fs25_previewLabelBase_evm"><position value="0px 128px"/></Profile>
+        <Profile name="fs25_previewValue_evm_row5" extends="fs25_previewValueBase_evm"><position value="280px 128px"/></Profile>
+
+        <Profile name="fs25_multiTextOption_evm" extends="baseReference">
+            <size value="350px 36px"/>
+            <autoAddDefaultElements value="true"/>
+            <defaultProfileButtonLeft value="fs25_multiTextOptionLeft"/>
+            <defaultProfileButtonRight value="fs25_multiTextOptionRight"/>
+            <defaultProfileText value="fs25_multiTextOptionText"/>
+            <defaultProfileBgThreePart value="fs25_multiTextOptionBg"/>
+        </Profile>
+
+        <Profile name="fs25_settingsMultiTextOption_evm" extends="fs25_multiTextOption_evm" with="anchorMiddleLeft">
+            <position value="0px 0px"/>
+            <focusOnHighlight value="true"/>
+            <wrap value="false"/>
+            <hideButtonOnLimitReached value="true"/>
+        </Profile>
+
+        <Profile name="fs25_multiTextOptionContainer_evm" extends="baseReference" with="anchorTopCenter">
+            <position value="0px 300px"/>
+            <size value="350px 50px"/>
+            <imageColor value="$preset_colorTransparent"/>
+        </Profile>
+    </GUIProfiles>
+</GUI>

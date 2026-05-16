@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ExtendedVehicleMaintenance - Konfigurationsdatei
+    Alle Werte koennen frei angepasst werden.
+    Die Datei wird beim Spielstart einmalig eingelesen.
+-->
+<evmConfig>
+
+    <!--
+        Schwierigkeitsgrad-Preset
+        Moegliche Werte: easy | normal | hardcore | custom
+        Bei "custom" werden die Werte unten direkt verwendet.
+        Bei den anderen Presets werden Multiplikatoren angewendet.
+    -->
+    <difficulty preset="normal" />
+
+    <!--
+        Pannen-Einstellungen
+        breakdownBaseChance    : Grundwahrscheinlichkeit einer Panne pro Pruefintervall (0.0 - 1.0)
+        breakdownMinDamage     : Ab welchem Schadenswert Pannen moeglich sind (0.0 - 1.0)
+        breakdownOverdueChance : Zusaetzliche Chance wenn Wartung ueberfaellig (0.0 - 1.0)
+        breakdownMaxChance     : Absolute Obergrenze fuer Pannenwahrscheinlichkeit (0.0 - 1.0)
+        breakdownCheckInterval : Pruefintervall in Millisekunden (Echtzeit)
+        rpmLimitValue          : Max. Drehzahl im Notlauf-Modus (RPM)
+
+        v16-Hinweis: Die effektive Chance wird nun zusaetzlich mit einem Wear-Faktor
+        skaliert. Frische Fahrzeuge (>70% Restintervall) haben praktisch keine Chance
+        auf zufaellige Pannen. Erst ab 30% Verschleiss steigt die Chance quadratisch
+        bis zur Faelligkeit. Plus: nach Spawn/Kauf gilt ein Grace-Window von 25-75 min
+        Echtzeit, je nach Fahrzeugkategorie. Nach einer Panne kommt mind. 18 min global
+        und 75 min pro Fahrzeug Cooldown.
+    -->
+    <breakdown
+        baseChance="0.00025"
+        minDamage="0.45"
+        overdueChance="0.006"
+        maxChance="0.012"
+        checkInterval="60000"
+        rpmLimitValue="2000"
+    />
+
+    <!--
+        Kosten-Multiplikatoren fuer die Servicemodi
+        workshopFactor     : Werkstatt (Standard)
+        technicianFactor   : Techniker vor Ort (teurer, aber kein Transport)
+        selfRepairFactor   : Selbst reparieren (guenstig, dauert laenger)
+        damageFactor       : Aufschlag pro % Schaden
+    -->
+    <costs
+        workshopFactor="2.2"
+        technicianFactor="3.8"
+        selfRepairFactor="0.35"
+        damageFactor="2.6"
+    />
+
+    <!--
+        Dauer-Multiplikatoren fuer die Servicemodi
+        technicianFactor   : Techniker dauert X-mal laenger als Werkstatt
+        selfRepairFactor   : Selbst reparieren dauert X-mal laenger als Werkstatt
+        selfRepairExtraH   : Zusaetzliche Stunden beim Selbst-Reparieren
+    -->
+    <duration
+        technicianFactor="1.25"
+        selfRepairFactor="5.0"
+        selfRepairExtraH="2.5"
+    />
+
+    <!--
+        Fahrzeugkategorien
+        Jede Kategorie definiert Wartungsintervalle und Panning-Multiplikatoren.
+
+        name              : Interner Name (wird im Code referenziert)
+        hoursInterval     : Betriebsstunden bis naechste Wartung (FRISCHES Fahrzeug ohne Schaden!)
+        daysInterval      : Spieltage bis naechste Wartung (FRISCHES Fahrzeug ohne Schaden!)
+        maxHours          : Maximaler Pool nach einer Wartung, Standard: 25 Bh
+        maxDays           : Maximaler Tage-Pool nach einer Wartung
+        breakdownMult     : Pannen-Multiplikator relativ zu baseChance
+        costFactor        : Kostenaufschlag relativ zu Standard (1.0 = normal)
+        label_de          : Anzeigename Deutsch
+        label_en          : Anzeigename Englisch
+
+        v16-Hinweis: Die effektive Verbrauchsrate ist nicht mehr konstant. Das Spiel
+        rechnet nun Alter (gesamte Betriebsstunden) und aktuellen Schaden ein:
+          - Frisches Fahrzeug: Faktor 1.0 -> nominales Intervall
+          - 1000 Bh alt: ca. 1.5x schnellerer Verbrauch
+          - 50% Schaden: zusaetzlich +20% Verbrauch
+          - Cap bei 2.5x damit es nicht entgleist
+        v22: Der Service-Takt ist jetzt fest auf ca. 25 LS-Betriebsstunden ausgelegt.
+        Die Betriebsstunden kommen aus dem nativen LS-operatingTime des Fahrzeugs.
+
+        Erkennungsreihenfolge (erste passende Kategorie gewinnt):
+          harvester   -> hat spec_motorized + spec_combine
+          tractor     -> hat spec_motorized, kein spec_combine
+          trailer     -> hat spec_trailer oder spec_semitrailer
+          implement   -> hat spec_workArea oder spec_attacherJoints (kein Motor)
+          tool        -> alles andere ohne Motor
+    -->
+    <vehicleCategories>
+        <category
+            name="harvester"
+            hoursInterval="25"
+            daysInterval="9999"
+            maxHours="25"
+            maxDays="9999"
+            breakdownMult="1.4"
+            costFactor="1.3"
+            label_de="Maehdrescher / Erntemaschine"
+            label_en="Harvester"
+        />
+        <category
+            name="tractor"
+            hoursInterval="25"
+            daysInterval="9999"
+            maxHours="25"
+            maxDays="9999"
+            breakdownMult="1.0"
+            costFactor="1.0"
+            label_de="Traktor / Zugmaschine"
+            label_en="Tractor"
+        />
+        <category
+            name="trailer"
+            hoursInterval="25"
+            daysInterval="9999"
+            maxHours="25"
+            maxDays="9999"
+            breakdownMult="0.12"
+            costFactor="0.5"
+            label_de="Anhaenger"
+            label_en="Trailer"
+        />
+        <category
+            name="implement"
+            hoursInterval="25"
+            daysInterval="9999"
+            maxHours="25"
+            maxDays="9999"
+            breakdownMult="0.25"
+            costFactor="0.6"
+            label_de="Anbaugeraet"
+            label_en="Implement"
+        />
+        <category
+            name="tool"
+            hoursInterval="25"
+            daysInterval="9999"
+            maxHours="25"
+            maxDays="9999"
+            breakdownMult="0.05"
+            costFactor="0.3"
+            label_de="Werkzeug / Zubehoer"
+            label_en="Tool / Attachment"
+        />
+        <category
+            name="default"
+            hoursInterval="25"
+            daysInterval="9999"
+            maxHours="25"
+            maxDays="9999"
+            breakdownMult="1.0"
+            costFactor="1.0"
+            label_de="Fahrzeug"
+            label_en="Vehicle"
+        />
+    </vehicleCategories>
+
+    <!--
+        Difficulty-Presets
+        Diese Multiplikatoren werden auf alle Werte angewendet wenn das Preset aktiv ist.
+        breakdownMult : Multipliziert breakdownBaseChance und breakdownOverdueChance
+        costMult      : Multipliziert alle Kosten
+        intervalMult  : Multipliziert hoursInterval und daysInterval (>1 = laengere Intervalle = leichter)
+    -->
+    <difficultyPresets>
+        <preset name="easy"     breakdownMult="0.35" costMult="0.5"  intervalMult="2.0" />
+        <preset name="normal"   breakdownMult="1.0"  costMult="1.0"  intervalMult="1.0" />
+        <preset name="hardcore" breakdownMult="2.0"  costMult="1.8"  intervalMult="0.6" />
+    </difficultyPresets>
+
+    <!--
+        HUD-Einstellungen
+        enabled          : HUD komplett aktivieren/deaktivieren (true/false)
+        posX             : rechter HUD-Anker (0.0 = links, 1.0 = rechts)
+        posY             : oberer HUD-Anker (0.0 = unten, 1.0 = oben)
+        scale            : Groesse des HUD (0.55 - 1.50, 0.88 = Standard)
+        showOperatingH   : Betriebsstunden anzeigen (true/false)
+        showNextService  : Naechster Service anzeigen (true/false)
+        showWarningLamps : Kontrollleuchten anzeigen (true/false)
+        onlyWhenEntered  : Nur anzeigen wenn im Fahrzeug (true/false)
+        Tipp             : evmHudScale, evmHudPos, evmHudEdit und evmHudReset koennen im Spiel genutzt werden.
+    -->
+    <hud
+        enabled="true"
+        posX="0.993"
+        posY="0.512"
+        scale="0.88"
+        showOperatingH="true"
+        showNextService="true"
+        showWarningLamps="true"
+        onlyWhenEntered="true"
+    />
+
+</evmConfig>
