@@ -1,25 +1,66 @@
 # Extended Vehicle Maintenance
 
-Extended Vehicle Maintenance adds a realistic vehicle maintenance system to Farming Simulator 25.
+Extended Vehicle Maintenance makes vehicle care in Farming Simulator 25 feel less instant and more meaningful.
 
-Vehicles can be sent into service and cannot be used while maintenance work is in progress. The maintenance interval is based on the vehicle operating hours. The mod also adds realistic malfunction events, such as flat tires, engine issues, RPM/emergency-mode failures, hydraulic failures, brake failures and battery problems.
+Instead of repairing everything with one quick click, vehicles and implements need regular service based on their operating hours. When a machine goes into maintenance, it is actually unavailable for a while: it cannot be used, started or driven until the service is finished.
 
-A battery simulation is included as well. Batteries can discharge when electrical consumers are active and recharge while the engine is running.
+The mod also adds realistic technical problems. Poorly maintained or unlucky machines can suffer from issues such as engine failures, emergency-mode/RPM limitations, flat tires, hydraulic problems, brake failures and battery faults. On top of that, the included battery simulation handles charging and discharging depending on vehicle use and electrical consumers.
+
+This mod is designed especially for realistic multiplayer servers and long-term savegames where maintenance, downtime and planning should matter.
 
 ## Features
 
-- Realistic vehicle maintenance system
-- Maintenance based on operating hours
-- Vehicles are locked while service is active
-- Service modes for workshop, technician and self-repair
-- Malfunction system with multiple failure types
+- Maintenance system based on operating hours
+- Vehicles and implements are locked while service is active
+- Different service options: workshop, on-site technician and self-repair
+- Workshop service takes time and removes the machine from use
+- On-site technician is the most expensive option
+- Self-repair is the cheapest option, but takes the longest
+- Realistic malfunction system with multiple failure types
 - Battery charging and discharging simulation
-- HUD for maintenance and vehicle condition information
-- Configurable HUD size and position
+- HUD for maintenance, battery and vehicle condition information
+- Adjustable HUD size and position
 - Multiplayer/server support
 - Console commands for testing, debugging and recovery
 
+## Service Options
+
+Extended Vehicle Maintenance offers different ways to handle service and repairs:
+
+### Workshop Service
+
+Send the machine to the workshop and wait until the work is finished. The vehicle cannot be used during this time.
+
+### On-Site Technician
+
+Call a technician to handle the repair. This is the most expensive option, but useful when you want the work done professionally without choosing the cheapest route.
+
+### Self-Repair
+
+Repair the machine yourself. This is the cheapest option, but it takes the longest to complete.
+
+## Malfunctions
+
+Vehicles can suffer from different technical issues, including:
+
+- Engine problems
+- Flat tires
+- RPM/emergency-mode failures
+- Hydraulic failures
+- Brake failures
+- Battery-related problems
+
+These failures are meant to make machines feel less perfect and give maintenance more importance during normal gameplay.
+
+## Battery Simulation
+
+The battery system simulates basic charging and discharging behavior.
+
+Electrical consumers can slowly drain the battery when the engine is off. When the engine is running, the battery can recharge again. This makes parked or poorly handled vehicles feel more believable over time.
+
 ## Console Commands
+
+The following commands are mainly intended for server owners, admins, testing and recovery.
 
 ### Failure / Malfunction Commands
 
@@ -52,7 +93,7 @@ Sets the current vehicle maintenance state to due immediately.
 evmResetPool
 ```
 
-Resets the maintenance interval/pool of the current vehicle.
+Resets the maintenance interval of the current vehicle.
 
 ```txt
 evmStatus
@@ -64,7 +105,7 @@ Shows the maintenance status of the current vehicle.
 evmClearService
 ```
 
-Clears the service lock from the current or nearby vehicle.
+Clears the service lock from the current or nearby vehicle. Useful if a vehicle is still locked after service due to an old saved state or test version.
 
 ```txt
 evmClearAllService
@@ -76,7 +117,7 @@ Clears all service locks from all vehicles.
 evmFleetReset
 ```
 
-Resets all vehicles: removes damage, restores maintenance intervals and clears failures. Useful when old versions created incorrect saved states.
+Resets all vehicles by clearing failures, restoring maintenance intervals and removing incorrect saved states. This is mainly useful after testing or after updating from older versions.
 
 ### Debug / Diagnostic Commands
 
@@ -97,7 +138,7 @@ Checks whether EVM is loaded correctly on the current vehicle.
 evmRepairDiag
 ```
 
-Shows diagnostic information about available repair/damage functions on the current vehicle.
+Shows diagnostic information about available repair and damage functions on the current vehicle.
 
 ```txt
 evmCollisionTest
@@ -129,7 +170,7 @@ evmHudEdit 1
 evmHudEdit 0
 ```
 
-Starts or stops HUD edit mode. While enabled, the HUD can be positioned with the mouse. Disabling edit mode saves the position.
+Starts or stops HUD edit mode. While edit mode is enabled, the HUD can be positioned with the mouse. Disabling edit mode saves the position.
 
 ```txt
 evmHudNudge left
@@ -163,11 +204,15 @@ Resets HUD position and size to default.
 
 ## Notes
 
-This mod is currently developed and tested for Farming Simulator 25 multiplayer/server use. Some functions are intended for debugging, testing and recovery and should only be used by server owners or trusted admins.
+Extended Vehicle Maintenance is developed with multiplayer and dedicated servers in mind. Some commands are included for testing and recovery and should only be used by server owners or trusted admins.
+
+The mod is still being improved and may receive balancing changes, new failure types and further workshop improvements over time.
 
 ## Support
 
-Support on: https://discord.gg/C9yRZmQ6M3
+Support is available on Discord:
+
+https://discord.gg/C9yRZmQ6M3
 
 ## Usage Terms
 
