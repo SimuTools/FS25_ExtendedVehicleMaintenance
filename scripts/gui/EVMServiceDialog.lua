@@ -1,3 +1,11 @@
+local EVM_SILENT_LOGS = true
+local evmOriginalPrint = print
+local function evmPrint(...)
+    if not EVM_SILENT_LOGS then
+        evmOriginalPrint(...)
+    end
+end
+
 EVMServiceDialog = {}
 local EVMServiceDialog_mt = Class(EVMServiceDialog, YesNoDialog)
 
@@ -5,9 +13,9 @@ local function evmDbg(fmt, ...)
     if not (ExtendedVehicleMaintenance ~= nil and ExtendedVehicleMaintenance.debug) then return end
     local ok, msg = pcall(string.format, "[EVM] " .. tostring(fmt), ...)
     if ok then
-        print(msg)
+        evmPrint(msg)
     else
-        print("[EVM] " .. tostring(fmt))
+        evmPrint("[EVM] " .. tostring(fmt))
     end
 end
 
@@ -67,7 +75,7 @@ function EVMServiceDialog.register(modDir)
     evmDbg("register path=%s", tostring(path))
 
     if not fileExists(path) then
-        print("[ExtendedVehicleMaintenance] ERROR Dialog xml missing: " .. tostring(path))
+        evmPrint("[ExtendedVehicleMaintenance] ERROR Dialog xml missing: " .. tostring(path))
         return false
     end
 
@@ -79,12 +87,12 @@ function EVMServiceDialog.register(modDir)
     end)
 
     if not ok then
-        print("[ExtendedVehicleMaintenance] ERROR Dialog registration failed: " .. tostring(err))
+        evmPrint("[ExtendedVehicleMaintenance] ERROR Dialog registration failed: " .. tostring(err))
         return false
     end
 
     EVMServiceDialog.INSTANCE = dlg
-    print("[EVM] EVMServiceDialog registered")
+    evmPrint("[EVM] EVMServiceDialog registered")
     evmDbg("dialog registered=true instance=%s", tostring(dlg))
     return true
 end
@@ -405,7 +413,6 @@ function EVMServiceDialog:onClickOk()
 
     evmDbg("onClickOk START serviceMode=%s entry=%s vehicle=%s", tostring(self.serviceMode), tostring(entry), entry ~= nil and evmGetVehicleName(entry.vehicle) or "nil")
 
-    -- v18: CRITICAL-Panne darf nicht selbst repariert werden.
     if self.serviceMode == 3 and entry ~= nil and entry.vehicle ~= nil
         and ExtendedVehicleMaintenance ~= nil
         and ExtendedVehicleMaintenance.getActiveFailureTier ~= nil then

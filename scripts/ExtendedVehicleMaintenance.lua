@@ -1,3 +1,11 @@
+local EVM_SILENT_LOGS = true
+local evmOriginalPrint = print
+local function evmPrint(...)
+    if not EVM_SILENT_LOGS then
+        evmOriginalPrint(...)
+    end
+end
+
 local evmModDir = rawget(_G, "ExtendedVehicleMaintenance_DIR")
 if evmModDir == nil or evmModDir == "" then
     evmModDir = g_currentModDirectory
@@ -20,11 +28,11 @@ if evmModDir ~= nil and evmModDir ~= "" then
     source(evmModDir .. "scripts/events/EVMStartServiceEvent.lua")
     source(evmModDir .. "scripts/gui/EVMServiceDialog.lua")
 else
-    print("[ExtendedVehicleMaintenance] ERROR Could not resolve mod directory while loading main script")
+    evmPrint("[ExtendedVehicleMaintenance] ERROR Could not resolve mod directory while loading main script")
 end
 
 ExtendedVehicleMaintenance = {}
-ExtendedVehicleMaintenance.EVM_PATCH_TAG = "v13_service_unlock_drivable_restore"
+ExtendedVehicleMaintenance.EVM_PATCH_TAG = "v15_unlock_no_stale_locks"
 ExtendedVehicleMaintenance.MOD_NAME = g_currentModName or "FS25_ExtendedVehicleMaintenance"
 ExtendedVehicleMaintenance.EVM_PATCH_MARKER = "v21_haendler_repair_button_extra_hooks"
 ExtendedVehicleMaintenance.MOD_DIR = evmModDir or g_currentModDirectory or ""
@@ -34,13 +42,12 @@ ExtendedVehicleMaintenance.ACTION_NAME = "EVM_OPEN_SERVICE"
 ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP = 1
 ExtendedVehicleMaintenance.SERVICE_MODE_TECHNICIAN = 2
 ExtendedVehicleMaintenance.SERVICE_MODE_SELF_REPAIR = 3
--- Legacy-Defaults (werden durch loadConfig() überschrieben)
+
 ExtendedVehicleMaintenance.DEFAULT_HOURS = 25
 ExtendedVehicleMaintenance.DEFAULT_DAYS = 9999
 ExtendedVehicleMaintenance.MAX_HOURS = 25
 ExtendedVehicleMaintenance.MAX_DAYS = 9999
--- v22: Wartungsintervall basiert auf den nativen LS-Betriebsstunden.
--- Standard: alle 25 Betriebsstunden, nicht mehr 90h/120h Pool.
+
 ExtendedVehicleMaintenance.SERVICE_INTERVAL_HOURS = 25
 ExtendedVehicleMaintenance.SERVICE_INTERVAL_MS = ExtendedVehicleMaintenance.SERVICE_INTERVAL_HOURS * 60 * 60 * 1000
 ExtendedVehicleMaintenance.STALL_CHECK_INTERVAL = 3500
@@ -59,14 +66,9 @@ ExtendedVehicleMaintenance.savegamePathsRegistered = false
 ExtendedVehicleMaintenance.dialogRegistered = false
 ExtendedVehicleMaintenance.debug = false
 ExtendedVehicleMaintenance.COLLISION_DEBUG = false
--- v19: Kollisions-Detection deutlich strenger gegen False-Positives.
--- Ursachen die im Live-Spiel zu Schaden ohne echten Crash gefuehrt haben:
---  1. Teleport-Spikes (Position-Reset bei Einstieg/Resync) -> riesige posSpeed -> Drop-Detection
---  2. Y-Velocity beim Bodenkontakt nach Sprung -> phantom-Geschwindigkeitsabfall
---  3. lowSpeedBump triggerte beim normalen Wenden auf weichem Boden
---  4. Frame-Hänger (>250ms dt) -> dist/dt explodiert
+
 ExtendedVehicleMaintenance.COLLISION_MIN_SPEED_KMH = 8.0
--- Schaden pro Frame max 12% (vorher 18%) - selbst bei echtem Crash kein Reifen-Killer-Schlag
+
 ExtendedVehicleMaintenance.COLLISION_MIN_RELATIVE_DROP = 0.50
 ExtendedVehicleMaintenance.COLLISION_DAMAGE_DEBUG = false
 ExtendedVehicleMaintenance.COLLISION_MIN_IMPACT_SPEED_KMH = 8.0
@@ -75,11 +77,11 @@ ExtendedVehicleMaintenance.COLLISION_COOLDOWN_MS = 1500
 ExtendedVehicleMaintenance.COLLISION_POST_IMPACT_GRACE_MS = 1400
 ExtendedVehicleMaintenance.COLLISION_BRAKE_INPUT_SUPPRESSION = true
 ExtendedVehicleMaintenance.COLLISION_BRAKE_HISTORY_MS = 1300
--- v19: Neue Sicherheits-Schwellen
-ExtendedVehicleMaintenance.COLLISION_TELEPORT_SPEED_KMH = 120 -- ueber dem Wert: Teleport, nicht Crash
-ExtendedVehicleMaintenance.COLLISION_MAX_FRAME_DT_MS = 250    -- ueber dem Wert: Frame-Hang ignorieren
-ExtendedVehicleMaintenance.COLLISION_INIT_GRACE_MS = 2500     -- nach Spawn/Einstieg keine Detection
-ExtendedVehicleMaintenance.COLLISION_MIN_FRAME_DECEL = 75.0   -- vorher 45-55, jetzt strenger
+
+ExtendedVehicleMaintenance.COLLISION_TELEPORT_SPEED_KMH = 120 
+ExtendedVehicleMaintenance.COLLISION_MAX_FRAME_DT_MS = 250    
+ExtendedVehicleMaintenance.COLLISION_INIT_GRACE_MS = 2500     
+ExtendedVehicleMaintenance.COLLISION_MIN_FRAME_DECEL = 75.0   
 ExtendedVehicleMaintenance.COLLISION_MIN_DROP_KMH = 4.5
 ExtendedVehicleMaintenance.COLLISION_STOP_SPEED_KMH = 2.5
 ExtendedVehicleMaintenance.COLLISION_POST_IMPACT_LOG_MS = 450
@@ -88,10 +90,9 @@ ExtendedVehicleMaintenance.globalChargeActionEventId = nil
 ExtendedVehicleMaintenance.activeSellingPoint = nil
 ExtendedVehicleMaintenance.globalWorkshopActionTimer = 0
 
--- Batterie-Laden: Konfiguration
-ExtendedVehicleMaintenance.BATTERY_CHARGE_COST = 5            -- €
-ExtendedVehicleMaintenance.BATTERY_CHARGE_DURATION_MIN = 15   -- Echtzeit-Minuten Sperre
-ExtendedVehicleMaintenance.BATTERY_CHARGE_THRESHOLD = 0.95    -- Erst unter 95% wird Laden angeboten
+ExtendedVehicleMaintenance.BATTERY_CHARGE_COST = 5            
+ExtendedVehicleMaintenance.BATTERY_CHARGE_DURATION_MIN = 15   
+ExtendedVehicleMaintenance.BATTERY_CHARGE_THRESHOLD = 0.95    
 ExtendedVehicleMaintenance.clientLockWarningUntil = 0
 ExtendedVehicleMaintenance.NEARBY_SERVICE_DISTANCE = 28
 ExtendedVehicleMaintenance.ENTER_HINT_DURATION_MS = 6500
@@ -99,54 +100,42 @@ ExtendedVehicleMaintenance.BREAKDOWN_CHECK_INTERVAL = 60000
 ExtendedVehicleMaintenance.BREAKDOWN_GLOBAL_UPDATE_INTERVAL = 1000
 ExtendedVehicleMaintenance.BREAKDOWN_DEBUG = false
 ExtendedVehicleMaintenance.BREAKDOWN_MIN_DAMAGE = 0.45
--- v15: Natuerliche Pannen waren nach dem MP-Fix viel zu aggressiv.
--- Chancen gelten pro Pruefintervall und werden serverseitig fuer alle Fahrzeuge geprueft.
+
 ExtendedVehicleMaintenance.BREAKDOWN_BASE_CHANCE = 0.00025
 ExtendedVehicleMaintenance.BREAKDOWN_OVERDUE_CHANCE = 0.006
 ExtendedVehicleMaintenance.BREAKDOWN_MAX_CHANCE = 0.012
--- v16: globale & pro-Fahrzeug Cooldowns nach einer Panne deutlich erhoeht, damit nicht
--- direkt nach einer Panne irgendwo das naechste Fahrzeug auch eine Panne bekommt.
+
 ExtendedVehicleMaintenance.BREAKDOWN_MIN_GLOBAL_COOLDOWN = 18 * 60 * 1000
 ExtendedVehicleMaintenance.BREAKDOWN_MIN_VEHICLE_COOLDOWN = 75 * 60 * 1000
 ExtendedVehicleMaintenance.RPM_LIMIT_FAILURE_RPM = 2000
 ExtendedVehicleMaintenance._hardLockVehicles = ExtendedVehicleMaintenance._hardLockVehicles or {}
 ExtendedVehicleMaintenance._tireEffectStates = ExtendedVehicleMaintenance._tireEffectStates or setmetatable({}, { __mode = "k" })
 
--- v18: Pannen-Schweregrad-System.
--- MINOR  : leichte Panne, vor Ort selbst behebbar (Ersatzteil/Werkzeug aus Bordkasten)
--- MAJOR  : Standard, wie bisher: Werkstatt / Techniker / Selbst-Reparatur
--- CRITICAL: schwere Panne, nur Werkstatt oder Techniker (Selbst-Reparatur deaktiviert)
 ExtendedVehicleMaintenance.SEVERITY_TIER_MINOR    = "minor"
 ExtendedVehicleMaintenance.SEVERITY_TIER_MAJOR    = "major"
 ExtendedVehicleMaintenance.SEVERITY_TIER_CRITICAL = "critical"
--- Schwellen, die aus dem 0..1 severity-Wert die Stufe bestimmen.
-ExtendedVehicleMaintenance.SEVERITY_THRESHOLD_MINOR    = 0.40   -- < 0.40 -> minor
-ExtendedVehicleMaintenance.SEVERITY_THRESHOLD_CRITICAL = 0.75   -- >= 0.75 -> critical
--- Quick-Fix Kosten/Dauer: pro Pannentyp ein Materialpreis und eine Reparaturdauer (Echtzeit-ms).
--- Engine ist bewusst NICHT enthalten -- Motorpanne braucht immer Werkstatt egal welcher Tier.
+
+ExtendedVehicleMaintenance.SEVERITY_THRESHOLD_MINOR    = 0.40   
+ExtendedVehicleMaintenance.SEVERITY_THRESHOLD_CRITICAL = 0.75   
+
 ExtendedVehicleMaintenance.QUICK_FIX_DEFINITIONS = {
     flatTire      = { cost =  80, durationMs = 180 * 1000, label_de = "Reifen flicken",      label_en = "Patch tire" },
     hydraulicLeak = { cost =  60, durationMs = 150 * 1000, label_de = "Hydraulikleck dichten", label_en = "Seal hydraulics" },
     brakeFault    = { cost = 100, durationMs = 210 * 1000, label_de = "Bremse nachstellen",    label_en = "Adjust brakes" },
     rpmLimit      = { cost =  90, durationMs = 200 * 1000, label_de = "Notlauf zuruecksetzen", label_en = "Reset limp mode" },
 }
--- "Weiterfahren mit Reduzierung": Effekt-Staerke wird halbiert fuer X ms, danach wieder voll.
--- Nur fuer MINOR Pannen verfuegbar. Kein Materialpreis, kein Cooldown.
+
 ExtendedVehicleMaintenance.LIMP_HOME_DURATION_MS = 30 * 60 * 1000
 ExtendedVehicleMaintenance.LIMP_HOME_SEVERITY_MULT = 0.5
 
--- Batterie-System helpers are forward-declared because onUpdate/onUpdateTick are defined
--- before the helper implementations further below. Without this Lua would resolve
--- evmGetElectricalLoad as a global/nil inside earlier functions.
 local evmGetElectricalLoad
 local evmGetAlternatorVoltage
--- v15_battery_debug_sync_restore
+
 local evmProcessBattery
 local evmGetEngineOn
 ExtendedVehicleMaintenance._vehiclePhysicsHookStates = ExtendedVehicleMaintenance._vehiclePhysicsHookStates or setmetatable({}, { __mode = "k" })
 ExtendedVehicleMaintenance._lastNearbyHelpTime = 0
 
--- Config-System: Fahrzeugkategorien (Standard-Fallback, wird durch loadConfig() befüllt)
 ExtendedVehicleMaintenance.vehicleCategories = {
     { name="harvester", hoursInterval=25, daysInterval=9999, maxHours=25, maxDays=9999, breakdownMult=1.4, costFactor=1.3 },
     { name="tractor",   hoursInterval=25, daysInterval=9999, maxHours=25, maxDays=9999, breakdownMult=1.0, costFactor=1.0 },
@@ -156,9 +145,6 @@ ExtendedVehicleMaintenance.vehicleCategories = {
     { name="default",   hoursInterval=25, daysInterval=9999, maxHours=25, maxDays=9999, breakdownMult=1.0, costFactor=1.0 },
 }
 
--- HUD-Konfiguration (Standard, wird durch loadConfig() überschrieben)
--- Position ist bewusst unten rechts, passend zum Standard-Fahrzeug-HUD.
--- posX/posY werden als rechter/oberer Anker verwendet, damit das HUD nicht in den Tacho läuft.
 ExtendedVehicleMaintenance.hudConfig = {
     enabled         = true,
     posX            = 0.993,
@@ -170,15 +156,8 @@ ExtendedVehicleMaintenance.hudConfig = {
     onlyWhenEntered = true,
 }
 
--- -----------------------------------------------------------------------
--- -----------------------------------------------------------------------
--- Config-Loader
--- Liest evm_config.xml per einfachem Text-Parser (kein Schema nötig).
--- Die Config wird beim ersten Start aus dem Mod-Ordner in den Savegame-
--- Ordner kopiert, damit der Spieler sie dort bequem bearbeiten kann.
--- -----------------------------------------------------------------------
 function ExtendedVehicleMaintenance.getConfigPath()
-    -- Savegame-Ordner: getUserProfileAppPath() + /modSettings/EVM/
+    
     local base = getUserProfileAppPath and getUserProfileAppPath() or ""
     if base ~= "" and string.sub(base, -1) ~= "/" then base = base .. "/" end
     return base .. "modSettings/FS25_ExtendedVehicleMaintenance/evm_config.xml"
@@ -188,14 +167,13 @@ function ExtendedVehicleMaintenance.ensureConfigExists()
     local destPath = ExtendedVehicleMaintenance.getConfigPath()
     local srcPath  = ExtendedVehicleMaintenance.MOD_DIR .. "evm_config.xml"
 
-    -- Prüfen ob Zieldatei existiert UND nicht leer ist
     local needsCopy = not fileExists(destPath)
     if not needsCopy and fileExists(destPath) then
-        -- Leere Datei erkennen: loadXMLFile schlägt fehl
+        
         local testId = loadXMLFile("evmConfigTest", destPath)
         if testId == nil or testId == 0 then
             needsCopy = true
-            print("[EVM] Config-Datei ist leer oder ungültig, wird neu kopiert.")
+            evmPrint("[EVM] Config-Datei ist leer oder ungültig, wird neu kopiert.")
         else
             delete(testId)
         end
@@ -203,16 +181,14 @@ function ExtendedVehicleMaintenance.ensureConfigExists()
 
     if not needsCopy then return destPath end
 
-    -- Zielordner anlegen
     local dir = destPath:match("^(.+)[/\\][^/\\]+$")
     if dir then createFolder(dir) end
 
-    -- Template aus Mod-Ordner kopieren
     if fileExists(srcPath) then
-        copyFile(srcPath, destPath, true)  -- true = overwrite
-        print("[EVM] Config nach " .. destPath .. " kopiert. Dort bearbeiten!")
+        copyFile(srcPath, destPath, true)  
+        evmPrint("[EVM] Config nach " .. destPath .. " kopiert. Dort bearbeiten!")
     else
-        print("[EVM] Keine evm_config.xml im Mod-Ordner gefunden, verwende Standardwerte.")
+        evmPrint("[EVM] Keine evm_config.xml im Mod-Ordner gefunden, verwende Standardwerte.")
         return nil
     end
 
@@ -224,16 +200,13 @@ function ExtendedVehicleMaintenance.loadConfig()
     local path = ExtendedVehicleMaintenance.ensureConfigExists()
 
     if path == nil or not fileExists(path) then
-        print("[EVM] Config nicht gefunden, Standardwerte aktiv.")
+        evmPrint("[EVM] Config nicht gefunden, Standardwerte aktiv.")
         return
     end
 
-    -- FS25 blockiert io.open im Lesemodus.
-    -- Wir nutzen das alte Integer-basierte XML-API (loadXMLFile/getXMLString/getXMLFloat etc.)
-    -- das KEIN registriertes Schema benötigt.
     local xmlId = loadXMLFile("evmConfig", path)
     if xmlId == nil or xmlId == 0 then
-        print("[EVM] Config konnte nicht geladen werden: " .. tostring(path))
+        evmPrint("[EVM] Config konnte nicht geladen werden: " .. tostring(path))
         return
     end
 
@@ -250,7 +223,6 @@ function ExtendedVehicleMaintenance.loadConfig()
         return (v ~= nil and v ~= "") and v or default
     end
 
-    -- Difficulty preset
     local preset = getS("evmConfig.difficulty#preset", "normal")
     local bMult, cMult, iMult = 1.0, 1.0, 1.0
     if preset ~= "custom" then
@@ -268,7 +240,6 @@ function ExtendedVehicleMaintenance.loadConfig()
         end
     end
 
-    -- Breakdown
     local bd = "evmConfig.breakdown"
     cfg.BREAKDOWN_BASE_CHANCE    = getF(bd .. "#baseChance",    0.00025) * bMult
     cfg.BREAKDOWN_MIN_DAMAGE     = getF(bd .. "#minDamage",     0.45)
@@ -277,9 +248,6 @@ function ExtendedVehicleMaintenance.loadConfig()
     cfg.BREAKDOWN_CHECK_INTERVAL = getF(bd .. "#checkInterval", 60000)
     cfg.RPM_LIMIT_FAILURE_RPM    = getF(bd .. "#rpmLimitValue", 2000)
 
-    -- v15 Safety-Migration: Alte modSettings-Dateien hatten z.B. 0.008 alle 8 Sekunden.
-    -- Das ist im globalen MP-Scanner extrem hoch, weil jedes geladene Fahrzeug separat gewuerfelt wird.
-    -- Deshalb werden nur offensichtlich alte/zu aggressive Werte automatisch auf spielbare Werte begrenzt.
     if cfg.BREAKDOWN_CHECK_INTERVAL < 45000 then
         cfg.BREAKDOWN_CHECK_INTERVAL = 60000
     end
@@ -293,20 +261,17 @@ function ExtendedVehicleMaintenance.loadConfig()
         cfg.BREAKDOWN_MAX_CHANCE = 0.012
     end
 
-    -- Costs
     local co = "evmConfig.costs"
     cfg.WORKSHOP_COST_FACTOR    = getF(co .. "#workshopFactor",   2.2)  * cMult
     cfg.TECHNICIAN_COST_FACTOR  = getF(co .. "#technicianFactor", 3.8)  * cMult
     cfg.SELF_REPAIR_COST_FACTOR = getF(co .. "#selfRepairFactor", 0.35) * cMult
     cfg.DAMAGE_COST_FACTOR      = getF(co .. "#damageFactor",     2.6)
 
-    -- Duration
     local du = "evmConfig.duration"
     cfg.TECHNICIAN_DURATION_FACTOR  = getF(du .. "#technicianFactor", 1.25)
     cfg.SELF_REPAIR_DURATION_FACTOR = getF(du .. "#selfRepairFactor", 5.0)
     cfg.SELF_REPAIR_EXTRA_HOURS     = getF(du .. "#selfRepairExtraH", 2.5)
 
-    -- Vehicle categories
     local cats = {}
     local i = 0
     while true do
@@ -330,7 +295,6 @@ function ExtendedVehicleMaintenance.loadConfig()
         cfg.vehicleCategories = cats
     end
 
-    -- HUD
     local hb = "evmConfig.hud"
     cfg.hudConfig = {
         enabled         = getB(hb .. "#enabled",          true),
@@ -343,7 +307,6 @@ function ExtendedVehicleMaintenance.loadConfig()
         onlyWhenEntered = getB(hb .. "#onlyWhenEntered",   true),
     }
 
-    -- Migration fuer alte HUD-Defaults aus modSettings: alte Version sass zu weit oben/rechts und war zu gross.
     if (math.abs((cfg.hudConfig.posX or 0) - 0.955) < 0.001 and math.abs((cfg.hudConfig.posY or 0) - 0.350) < 0.001)
         or (math.abs((cfg.hudConfig.posX or 0) - 0.810) < 0.001 and math.abs((cfg.hudConfig.posY or 0) - 0.315) < 0.001)
         or (math.abs((cfg.hudConfig.posX or 0) - 0.835) < 0.010 and math.abs((cfg.hudConfig.posY or 0) - 0.305) < 0.030) then
@@ -352,9 +315,6 @@ function ExtendedVehicleMaintenance.loadConfig()
         cfg.hudConfig.scale = 0.88
     end
 
-    -- v24: alter 0.842/0.300-Default war nur ein Config-Anker, gezeichnet wurde spaeter
-    -- hart bei 0.993/0.512. Beim neuen verschiebbaren HUD wuerde die alte Config
-    -- sonst sichtbar springen, deshalb einmal sauber migrieren.
     if math.abs((cfg.hudConfig.posX or 0) - 0.842) < 0.010 and math.abs((cfg.hudConfig.posY or 0) - 0.300) < 0.030 then
         cfg.hudConfig.posX = 0.993
         cfg.hudConfig.posY = 0.512
@@ -365,7 +325,7 @@ function ExtendedVehicleMaintenance.loadConfig()
     cfg.hudConfig.posY  = math.max(0.05, math.min(0.950, tonumber(cfg.hudConfig.posY or 0.512) or 0.512))
 
     delete(xmlId)
-    print(string.format("[EVM] Config geladen: preset=%s breakdown=%.4f workshop=%.2f kategorien=%d | %s",
+    evmPrint(string.format("[EVM] Config geladen: preset=%s breakdown=%.4f workshop=%.2f kategorien=%d | %s",
         preset, cfg.BREAKDOWN_BASE_CHANCE, cfg.WORKSHOP_COST_FACTOR, #cfg.vehicleCategories, path))
 end
 
@@ -381,7 +341,7 @@ end
 function ExtendedVehicleMaintenance.saveHudConfig()
     local path = ExtendedVehicleMaintenance.ensureConfigExists() or ExtendedVehicleMaintenance.getConfigPath()
     if path == nil or path == "" then
-        print("[EVM] HUD Config konnte nicht gespeichert werden: kein Pfad")
+        evmPrint("[EVM] HUD Config konnte nicht gespeichert werden: kein Pfad")
         return false
     end
 
@@ -393,7 +353,7 @@ function ExtendedVehicleMaintenance.saveHudConfig()
         end
     end
     if xmlId == nil or xmlId == 0 then
-        print("[EVM] HUD Config konnte nicht gespeichert werden: XML nicht offen")
+        evmPrint("[EVM] HUD Config konnte nicht gespeichert werden: XML nicht offen")
         return false
     end
 
@@ -409,18 +369,13 @@ function ExtendedVehicleMaintenance.saveHudConfig()
 
     saveXMLFile(xmlId)
     delete(xmlId)
-    print(string.format("[EVM] HUD gespeichert: scale=%.2f posX=%.3f posY=%.3f", hud.scale, hud.posX, hud.posY))
+    evmPrint(string.format("[EVM] HUD gespeichert: scale=%.2f posX=%.3f posY=%.3f", hud.scale, hud.posX, hud.posY))
     return true
 end
 
 local function evmSetMouseCursorVisible(visible)
     visible = visible == true
 
-    -- setShowMouseCursor allein reicht im Fahrzeug nicht immer aus: die Kamera
-    -- bekommt dann weiter die Mausbewegung und der Cursor bleibt praktisch im
-    -- Gameplay-Modus. Deshalb versuchen wir zusaetzlich den GUI-Input-Modus zu
-    -- aktivieren. Alle Calls sind absichtlich via pcall gekapselt, weil sich die
-    -- Giants-API zwischen Patches/Versionen leicht unterscheidet.
     if g_inputBinding ~= nil and g_inputBinding.setShowMouseCursor ~= nil then
         pcall(g_inputBinding.setShowMouseCursor, g_inputBinding, visible)
     elseif InputBinding ~= nil and InputBinding.setShowMouseCursor ~= nil and g_inputBinding ~= nil then
@@ -499,17 +454,15 @@ function ExtendedVehicleMaintenance.setHudEditMode(active)
     ExtendedVehicleMaintenance.hudEditMode = active == true
     ExtendedVehicleMaintenance._hudDragActive = false
     ExtendedVehicleMaintenance._hudMouseWasDown = false
-    -- Standard jetzt: HUD folgt der Maus direkt. Das ist im LS25 deutlich
-    -- stabiler als Drag&Drop, weil das Gameplay sonst manchmal die Maus weiter
-    -- fuer die Kamera verwendet.
+    
     ExtendedVehicleMaintenance._hudFollowMouse = ExtendedVehicleMaintenance.hudEditMode
     evmSetMouseCursorVisible(ExtendedVehicleMaintenance.hudEditMode)
     if ExtendedVehicleMaintenance.hudEditMode then
-        print("[EVM] HUD Edit aktiv: HUD folgt der Maus. Mit evmHudEdit 0 speichern/beenden. Optional: evmHudNudge left/right/up/down.")
+        evmPrint("[EVM] HUD Edit aktiv: HUD folgt der Maus. Mit evmHudEdit 0 speichern/beenden. Optional: evmHudNudge left/right/up/down.")
     else
         ExtendedVehicleMaintenance._hudFollowMouse = false
         ExtendedVehicleMaintenance.saveHudConfig()
-        print("[EVM] HUD Edit beendet.")
+        evmPrint("[EVM] HUD Edit beendet.")
     end
 end
 
@@ -521,10 +474,6 @@ function ExtendedVehicleMaintenance.updateHudEditMode(baseX, baseY, totalW, tota
 
     local down = evmIsLeftMouseDown()
 
-    -- Direkter Follow-Modus: Kein Klick erforderlich. Der Cursor sitzt in der
-    -- Mitte des HUDs; evmHudEdit 0 speichert die Position. Dadurch wird das
-    -- Problem umgangen, dass der linke Mausklick im Fahrzeug oft weiter an die
-    -- Kamera/Gameplay-Steuerung geht.
     if ExtendedVehicleMaintenance._hudFollowMouse == true then
         hud.posX = math.max(totalW + 0.005, math.min(0.995, mx + totalW * 0.5))
         hud.posY = math.max(totalH + 0.005, math.min(0.950, my + totalH * 0.5))
@@ -553,16 +502,12 @@ function ExtendedVehicleMaintenance.updateHudEditMode(baseX, baseY, totalW, tota
     ExtendedVehicleMaintenance._hudMouseWasDown = down
 end
 
--- -----------------------------------------------------------------------
--- Fahrzeugkategorie-Erkennung
--- -----------------------------------------------------------------------
 function ExtendedVehicleMaintenance.getVehicleCategory(vehicle)
     if vehicle == nil then
         return ExtendedVehicleMaintenance.getCategoryByName("default")
     end
     local root = vehicle.rootVehicle or vehicle
 
-    -- Reihenfolge: spezifischste zuerst
     if root.spec_motorized ~= nil and root.spec_combine ~= nil then
         return ExtendedVehicleMaintenance.getCategoryByName("harvester")
     end
@@ -582,12 +527,11 @@ function ExtendedVehicleMaintenance.getCategoryByName(name)
     for _, cat in ipairs(ExtendedVehicleMaintenance.vehicleCategories) do
         if cat.name == name then return cat end
     end
-    -- Fallback: letzte Kategorie (sollte "default" sein)
+    
     return ExtendedVehicleMaintenance.vehicleCategories[#ExtendedVehicleMaintenance.vehicleCategories]
         or { name="default", hoursInterval=25, daysInterval=9999, maxHours=25, maxDays=9999, breakdownMult=1.0, costFactor=1.0 }
 end
 
--- Forward declaration: used by evmGetActiveServiceSpec before the function body is defined later.
 local evmGetServiceRemainingMs
 local evmGetOperatingTimeMs
 local evmGetVehicleName
@@ -598,9 +542,9 @@ local function evmDbg(fmt, ...)
     end
     local ok, msg = pcall(string.format, "[EVM] " .. tostring(fmt), ...)
     if ok then
-        print(msg)
+        evmPrint(msg)
     else
-        print("[EVM] " .. tostring(fmt))
+        evmPrint("[EVM] " .. tostring(fmt))
     end
 end
 
@@ -616,9 +560,6 @@ local function evmGetDefaultServiceIntervalMs()
     return evmGetDefaultServiceIntervalHours() * 60 * 60 * 1000
 end
 
--- v22: Migration fuer alte 90h/120h-Werte.
--- Fahrzeuge ohne echten EVM-Serviceeintrag orientieren sich am nativen LS-operatingTime.
--- Beispiel: 10.1 Bh -> naechster Service in ca. 14.9h, 30.0 Bh -> naechster Takt bei 50h.
 local function evmGetOperatingCycleStartMs(currentOperatingTimeMs)
     local intervalMs = evmGetDefaultServiceIntervalMs()
     currentOperatingTimeMs = tonumber(currentOperatingTimeMs) or 0
@@ -634,9 +575,6 @@ local function evmMigrateMaintenanceIntervalToOperatingHours(spec, vehicle, reas
     local intervalMs = evmGetDefaultServiceIntervalMs()
     local oldPool = tonumber(spec.hoursPool or 0) or 0
 
-    -- Alte Versionen haben 90/120h gespeichert. Diese Werte verhindern, dass der
-    -- LS-Betriebsstunden-Takt sichtbar laeuft. Alles deutlich ueber dem neuen
-    -- Intervall wird einmalig auf den aktuellen 25h-Zyklus gelegt.
     if oldPool > (intervalH + 0.5) then
         local currentOp = evmGetOperatingTimeMs(vehicle)
         spec.hoursPool = intervalH
@@ -649,7 +587,6 @@ local function evmMigrateMaintenanceIntervalToOperatingHours(spec, vehicle, reas
             (tonumber(spec.lastServiceOperatingTimeMs) or 0) / intervalMs * intervalH)
     end
 end
-
 
 local function evmText(key, fallback)
     if g_i18n ~= nil and g_i18n.hasText ~= nil and g_i18n:hasText(key) then
@@ -740,21 +677,20 @@ evmGetOperatingTimeMs = function(vehicle)
     if vehicle == nil then
         return 0
     end
-    -- Motorisierte Fahrzeuge: native getOperatingTime
+    
     if vehicle.getOperatingTime ~= nil then
         return vehicle:getOperatingTime() or 0
     end
-    -- Geräte/Anhänger: operatingTime direkt oder über spec_wearable
+    
     if vehicle.operatingTime ~= nil then
         return vehicle.operatingTime
     end
-    -- spec_wearable hat bei manchen Implements operatingTime
+    
     if vehicle.spec_wearable ~= nil and vehicle.spec_wearable.operatingTime ~= nil then
         return vehicle.spec_wearable.operatingTime
     end
     return 0
 end
-
 
 evmGetVehicleName = function(vehicle)
     if vehicle == nil then
@@ -790,6 +726,8 @@ local function evmGetVehicleLabel(vehicle)
     return evmGetVehicleName(vehicle)
 end
 
+local evmEnsureVehicleInstanceId
+
 local function evmGetVehicleSpec(vehicle)
     if vehicle == nil then
         return nil
@@ -824,7 +762,7 @@ local function evmCreateRuntimeSpec(vehicle)
     end
 
     spec.dirtyFlag = dirtyFlag
-    -- Kategorie-basierte Standardwerte
+    
     local cat = ExtendedVehicleMaintenance.getVehicleCategory(vehicle)
     spec.hoursPool = ExtendedVehicleMaintenance.SERVICE_INTERVAL_HOURS or ExtendedVehicleMaintenance.DEFAULT_HOURS or 25
     spec.daysPool  = ExtendedVehicleMaintenance.MAX_DAYS or ExtendedVehicleMaintenance.DEFAULT_DAYS or 9999
@@ -847,11 +785,6 @@ local function evmCreateRuntimeSpec(vehicle)
     spec.failureDriftDirection = 0
     spec.engineFailureTimer = ExtendedVehicleMaintenance.BREAKDOWN_CHECK_INTERVAL or 60000
     spec.breakdownTimer = (ExtendedVehicleMaintenance.BREAKDOWN_CHECK_INTERVAL or 60000) + math.random(0, 30000)
-    -- v16: Frische Fahrzeuge bekommen einen großzügigen Grace-Window. Die alten 10–25 Min
-    -- waren bei 1×-Time-Scale viel zu kurz und führten zu Pannen kurz nach Spielstart bzw.
-    -- direkt nach dem Kauf eines neuen Fahrzeugs.
-    -- Wir staffeln nach Kategorie: motorisierte Fahrzeuge mehr Grace, Anhänger/Tools weniger,
-    -- weil dort eh nur kleine Pannen (Reifen) möglich sind.
     local _cat = ExtendedVehicleMaintenance.getVehicleCategory(vehicle)
     local _initialGraceMs
     if _cat ~= nil and (_cat.name == "harvester" or _cat.name == "tractor") then
@@ -865,19 +798,17 @@ local function evmCreateRuntimeSpec(vehicle)
     spec.enterHintUntil = 0
     spec.wasEntered = false
     spec.failureWarnUntil = 0
-    -- MP-Fix: Preserve battery state if it was already set by an event before this runtime spec creation.
+	
     if tonumber(spec.batteryCharge) == nil then spec.batteryCharge = 1.0 end
     if tonumber(spec.batteryVoltage) == nil then spec.batteryVoltage = 12.7 end
     spec.batteryVoltageTimer = 0
     spec._runtimeCreated = true
+    evmEnsureVehicleInstanceId(vehicle, spec)
 
     return spec
 end
 
 local function evmGetPersistDir()
-    -- Bevorzuge den Savegame-Ordner des aktuellen Spielstands.
-    -- Vorteile: pro Savegame getrennt, im MP schreibt nur der Server dort,
-    -- keine Konflikte zwischen verschiedenen Savegame-Slots.
     local saveDir = nil
     if g_currentMission ~= nil then
         local mi = g_currentMission.missionInfo
@@ -890,19 +821,15 @@ local function evmGetPersistDir()
     end
 
     if saveDir ~= nil and saveDir ~= "" then
-        -- Savegame-Ordner direkt nutzen (kein Unterordner nötig)
         if string.sub(saveDir, -1) ~= "/" and string.sub(saveDir, -1) ~= "\\" then
             saveDir = saveDir .. "/"
         end
-        -- Ordner anlegen falls nicht vorhanden (sollte eigentlich existieren)
         if createFolder ~= nil then
             pcall(createFolder, saveDir)
         end
-        -- Pfad ohne abschließenden Slash zurückgeben (wie bisher)
         return string.sub(saveDir, 1, -2)
     end
 
-    -- Fallback: modSettings (SP ohne geladenes Savegame, Dedi-Server-Edge-Cases)
     local basePath = nil
     if getUserProfileAppPath ~= nil then
         basePath = getUserProfileAppPath()
@@ -935,48 +862,86 @@ local function evmGetOwnerFarmIdSafe(vehicle)
     return 0
 end
 
+local function evmGenerateInstanceId(vehicle)
+    local rootVehicle = vehicle ~= nil and (vehicle.rootVehicle or vehicle) or nil
+    local rootNode = rootVehicle ~= nil and tostring(rootVehicle.rootNode or "0") or "0"
+    local xml = rootVehicle ~= nil and tostring(rootVehicle.configFileName or rootVehicle.xmlFileName or rootVehicle.typeName or "vehicle") or "vehicle"
+    xml = xml:gsub("[^%w_%-]", "_")
+    return string.format("evm_%s_%s_%s_%s", rootNode, tostring(g_time or 0), tostring(math.random(100000, 999999)), xml)
+end
+
+evmEnsureVehicleInstanceId = function(vehicle, spec)
+    if vehicle == nil then
+        return ""
+    end
+    local rootVehicle = vehicle.rootVehicle or vehicle
+    spec = spec or evmGetVehicleSpec(rootVehicle)
+    if spec == nil then
+        return ""
+    end
+    if spec.evmInstanceId == nil or tostring(spec.evmInstanceId) == "" then
+        spec.evmInstanceId = evmGenerateInstanceId(rootVehicle)
+    end
+    return tostring(spec.evmInstanceId or "")
+end
+
+local function evmGetVehicleInstanceId(vehicle)
+    if vehicle == nil then
+        return ""
+    end
+    local rootVehicle = vehicle.rootVehicle or vehicle
+    local spec = evmGetVehicleSpec(rootVehicle)
+    if spec ~= nil and spec.evmInstanceId ~= nil and tostring(spec.evmInstanceId) ~= "" then
+        return tostring(spec.evmInstanceId)
+    end
+    return ""
+end
+
 local function evmVehicleMatchesPersist(vehicle, data)
     if vehicle == nil or data == nil then
         return false
     end
 
     local configFileName = tostring(vehicle.configFileName or "")
-    local xmlFileName = tostring(vehicle.xmlFileName or "")
-    local typeName = tostring(vehicle.typeName or "")
-    local name = tostring(evmGetVehicleName(vehicle) or "")
-    local ownerFarmId = evmGetOwnerFarmIdSafe(vehicle)
+    local xmlFileName    = tostring(vehicle.xmlFileName    or "")
+    local typeName       = tostring(vehicle.typeName       or "")
+    local name           = tostring(evmGetVehicleName(vehicle) or "")
+    local ownerFarmId    = evmGetOwnerFarmIdSafe(vehicle)
+    local candidateInstanceId = evmGetVehicleInstanceId(vehicle)
+    local dataInstanceId = tostring(data.evmInstanceId or data.vehicleInstanceId or "")
 
-    -- rootNode ist bei resetVehicle() im MP NICHT stabil.
-    -- Gleiche rootNode darf sofort matchen, unterschiedliche rootNode darf
-    -- aber nicht hart ablehnen, weil das Werkstatt-Reset das Vehicle neu
-    -- streamen/erzeugen kann. Sonst bleibt der Service am alten Objekt haengen.
-    if data.rootNode ~= nil and vehicle.rootNode ~= nil and data.rootNode == vehicle.rootNode then
-        return true
+    if dataInstanceId ~= "" then
+        
+        
+        return candidateInstanceId ~= "" and candidateInstanceId == dataInstanceId
     end
 
-    -- Leere Strings in data sind KEINE Wildcards – sie bedeuten "unbekannt".
-    -- Nur matchen wenn data einen echten Wert hat UND er übereinstimmt.
+    if data.rootNode ~= nil and vehicle.rootNode ~= nil and data.rootNode == vehicle.rootNode then
+        local ownerMatch = tonumber(data.ownerFarmId or 0) == 0
+            or tonumber(data.ownerFarmId or 0) == ownerFarmId
+        return ownerMatch
+    end
+
     local configMatch = (data.configFileName ~= nil and data.configFileName ~= "")
         and data.configFileName == configFileName
-    local xmlMatch = (data.xmlFileName ~= nil and data.xmlFileName ~= "")
+    local xmlMatch   = (data.xmlFileName ~= nil and data.xmlFileName ~= "")
         and data.xmlFileName == xmlFileName
-    local typeMatch = (data.typeName ~= nil and data.typeName ~= "")
+    local typeMatch  = (data.typeName ~= nil and data.typeName ~= "")
         and data.typeName == typeName
-    local nameMatch = (data.name ~= nil and data.name ~= "")
+    local nameMatch  = (data.name ~= nil and data.name ~= "")
         and data.name == name
     local ownerMatch = tonumber(data.ownerFarmId or 0) == 0
         or tonumber(data.ownerFarmId or 0) == ownerFarmId
 
-    -- Mindestens configFileName ODER (xmlFileName UND typeName) muss matchen
-    local hasStrongId = configMatch or (xmlMatch and typeMatch)
+    local instanceMatch = dataInstanceId ~= "" and candidateInstanceId ~= "" and candidateInstanceId == dataInstanceId
+
+    local hasStrongId = instanceMatch or configMatch or (xmlMatch and typeMatch)
     if not hasStrongId then
-        -- Fallback: typeName + name wenn nichts anderes vorhanden
         hasStrongId = typeMatch and nameMatch
     end
 
     return hasStrongId and ownerMatch
 end
-
 
 local function evmBuildPersistRuntimeData(vehicle, serviceMode, durationMs, hoursAdded, daysAdded)
     local rootVehicle = vehicle ~= nil and (vehicle.rootVehicle or vehicle) or nil
@@ -991,6 +956,7 @@ local function evmBuildPersistRuntimeData(vehicle, serviceMode, durationMs, hour
         xmlFileName = tostring(rootVehicle.xmlFileName or ""),
         typeName = tostring(rootVehicle.typeName or ""),
         name = tostring(evmGetVehicleName(rootVehicle) or ""),
+        evmInstanceId = evmEnsureVehicleInstanceId(rootVehicle, evmGetVehicleSpec(rootVehicle)),
         ownerFarmId = evmGetOwnerFarmIdSafe(rootVehicle),
         operatingTimeMs = evmGetOperatingTimeMs(rootVehicle) or 0,
         serviceMode = tonumber(serviceMode) or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP,
@@ -1013,16 +979,16 @@ function ExtendedVehicleMaintenance.evmWritePersist(vehicle, serviceMode, durati
     local fileName = evmGetPersistFileName()
     local key = "extendedVehicleMaintenanceResetPersist.vehicle"
 
-    -- Avoid XMLFile:setValue without schema here; FS25 logs "Unable to get schema"
-    -- for every value. The old XML helpers are fine for this small modSettings bridge.
     if createXMLFile ~= nil and saveXMLFile ~= nil then
         local xmlId = createXMLFile("evmResetPersist", fileName, "extendedVehicleMaintenanceResetPersist")
         if xmlId ~= nil and xmlId ~= 0 then
             setXMLBool(xmlId, key .. "#pending", true)
+            setXMLInt(xmlId, key .. "#rootNode", tonumber(rootVehicle.rootNode) or 0)
             setXMLString(xmlId, key .. "#configFileName", tostring(rootVehicle.configFileName or ""))
             setXMLString(xmlId, key .. "#xmlFileName", tostring(rootVehicle.xmlFileName or ""))
             setXMLString(xmlId, key .. "#typeName", tostring(rootVehicle.typeName or ""))
             setXMLString(xmlId, key .. "#name", tostring(evmGetVehicleName(rootVehicle) or ""))
+            setXMLString(xmlId, key .. "#evmInstanceId", tostring(evmEnsureVehicleInstanceId(rootVehicle, evmGetVehicleSpec(rootVehicle)) or ""))
             setXMLInt(xmlId, key .. "#ownerFarmId", tonumber(evmGetOwnerFarmIdSafe(rootVehicle)) or 0)
             setXMLFloat(xmlId, key .. "#operatingTimeMs", tonumber(evmGetOperatingTimeMs(rootVehicle)) or 0)
             setXMLInt(xmlId, key .. "#serviceMode", tonumber(serviceMode) or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP)
@@ -1072,10 +1038,12 @@ function ExtendedVehicleMaintenance.evmReadPersist(vehicle)
     end
 
     local data = {
+        rootNode = getXMLInt(xmlId, key .. "#rootNode") or nil,
         configFileName = getXMLString(xmlId, key .. "#configFileName") or "",
         xmlFileName = getXMLString(xmlId, key .. "#xmlFileName") or "",
         typeName = getXMLString(xmlId, key .. "#typeName") or "",
         name = getXMLString(xmlId, key .. "#name") or "",
+        evmInstanceId = getXMLString(xmlId, key .. "#evmInstanceId") or "",
         ownerFarmId = getXMLInt(xmlId, key .. "#ownerFarmId") or 0,
         operatingTimeMs = getXMLFloat(xmlId, key .. "#operatingTimeMs"),
         serviceMode = getXMLInt(xmlId, key .. "#serviceMode") or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP,
@@ -1087,8 +1055,22 @@ function ExtendedVehicleMaintenance.evmReadPersist(vehicle)
 
     delete(xmlId)
 
-    if not evmVehicleMatchesPersist(vehicle.rootVehicle or vehicle, data) then
+    local rootVehicle = vehicle.rootVehicle or vehicle
+
+    if not evmVehicleMatchesPersist(rootVehicle, data) then
         return nil
+    end
+
+    if data.operatingTimeMs ~= nil and data.operatingTimeMs > 0 then
+        local vehicleOperatingMs = evmGetOperatingTimeMs(rootVehicle) or 0
+        local diff = math.abs(vehicleOperatingMs - data.operatingTimeMs)
+        local threshold = math.max(5000, data.operatingTimeMs * 0.02)
+        if diff > threshold then
+            evmDbg("evmReadPersist rejected vehicle=%s operatingTimeMs mismatch: vehicle=%.0f saved=%.0f diff=%.0f threshold=%.0f",
+                tostring(evmGetVehicleName(rootVehicle)),
+                vehicleOperatingMs, data.operatingTimeMs, diff, threshold)
+            return nil
+        end
     end
 
     return data
@@ -1120,7 +1102,15 @@ function ExtendedVehicleMaintenance.evmClearPersist(vehicle)
             ownerFarmId = getXMLInt(xmlId, key .. "#ownerFarmId") or 0,
             operatingTimeMs = getXMLFloat(xmlId, key .. "#operatingTimeMs")
         }
-        shouldClear = evmVehicleMatchesPersist(vehicle.rootVehicle or vehicle, data)
+        local rootVehicle = vehicle.rootVehicle or vehicle
+        local baseMatch = evmVehicleMatchesPersist(rootVehicle, data)
+        if baseMatch and data.operatingTimeMs ~= nil and data.operatingTimeMs > 0 then
+            local vehicleOperatingMs = evmGetOperatingTimeMs(rootVehicle) or 0
+            local diff = math.abs(vehicleOperatingMs - data.operatingTimeMs)
+            local threshold = math.max(5000, data.operatingTimeMs * 0.02)
+            baseMatch = diff <= threshold
+        end
+        shouldClear = baseMatch
     end
 
     if shouldClear then
@@ -1137,14 +1127,6 @@ function ExtendedVehicleMaintenance.evmClearPersist(vehicle)
     return false
 end
 
--- BUGFIX (zwei identische Trecker): Strikte Objekt-Identitaets-Pruefung,
--- ob ein konkretes Vehicle aktuell tatsaechlich das laufende Service-Fahrzeug ist.
--- evmVehicleMatchesPersist matcht zwei identische Trecker (gleicher configFileName,
--- gleicher ownerFarmId) als "gleich" und sperrt dadurch faelschlicherweise auch
--- den zweiten, baugleichen Trecker. Deshalb hier zuerst harte Objekt-Identitaet
--- pruefen und nur als Fallback (wenn das Service-Vehicle noch nicht aufgeloest
--- wurde, z.B. unmittelbar nach Workshop-Reset) den schwachen Match per Persist-Daten
--- zulassen - aber dann nur, wenn das ORIGINAL-Vehicle nicht mehr existiert.
 local function evmIsRuntimeServiceVehicle(vehicle, runtime)
     if vehicle == nil or runtime == nil or runtime.active ~= true then
         return false
@@ -1152,7 +1134,6 @@ local function evmIsRuntimeServiceVehicle(vehicle, runtime)
 
     local rootVehicle = vehicle.rootVehicle or vehicle
 
-    -- 1. Harte Objekt-Identitaet mit dem aktuell aufgeloesten Service-Vehicle
     if runtime.rootVehicle ~= nil then
         local rtRoot = runtime.rootVehicle.rootVehicle or runtime.rootVehicle
         if rtRoot == rootVehicle then
@@ -1160,7 +1141,6 @@ local function evmIsRuntimeServiceVehicle(vehicle, runtime)
         end
     end
 
-    -- 2. Im targets-Array enthalten (Mehrziel-Service)?
     if runtime.targets ~= nil then
         for i = 1, #runtime.targets do
             local t = runtime.targets[i]
@@ -1173,8 +1153,6 @@ local function evmIsRuntimeServiceVehicle(vehicle, runtime)
         end
     end
 
-    -- 3. Pre-Resolve-Phase: rootNode entspricht dem urspruenglichen Service-Vehicle
-    --    (z.B. direkt nach tryStartService bevor enforceRuntimePersistLock lief)
     if runtime.pendingLockData ~= nil and rootVehicle.rootNode ~= nil then
         if runtime.pendingLockData.rootNode ~= nil and runtime.pendingLockData.rootNode == rootVehicle.rootNode then
             return true
@@ -1182,21 +1160,6 @@ local function evmIsRuntimeServiceVehicle(vehicle, runtime)
         if runtime.pendingOldRootNode ~= nil and runtime.pendingOldRootNode == rootVehicle.rootNode then
             return true
         end
-    end
-
-    -- 4. Letzter Fallback: schwacher Persist-Match per configFileName/ownerFarmId,
-    --    aber NUR wenn das Original-Vehicle (data.rootNode) nicht mehr existiert.
-    --    Damit bleibt der Lock auch nach Workshop-Reset auf dem neu erzeugten Objekt
-    --    haengen, faengt aber nicht den zweiten baugleichen Trecker mit ein.
-    if runtime.pendingLockData ~= nil and evmVehicleMatchesPersist(rootVehicle, runtime.pendingLockData) then
-        local origRootNode = runtime.pendingLockData.rootNode or runtime.pendingOldRootNode
-        if origRootNode == nil or not evmIsValidNode(origRootNode) then
-            return true
-        end
-        -- origRootNode ist noch ein gueltiger Node -> Original lebt noch.
-        -- In diesem Fall darf der schwache Match KEIN anderes Fahrzeug als
-        -- "Service-Vehicle" markieren.
-        return false
     end
 
     return false
@@ -1209,19 +1172,12 @@ local function evmGetActiveServiceSpec(vehicle)
 
     local rootVehicle = vehicle.rootVehicle or vehicle
 
-    -- BUGFIX (zwei identische Trecker / "Motor startet nicht nach Service-Ende"):
-    -- Selbstheilung fuer Specs, in denen frueheres Verhalten faelschlich
-    -- isServiceActive=true gesetzt hat (zweiter baugleicher Trecker). Wenn die Spec
-    -- meldet "Service aktiv", aber GLOBAL kein Service laeuft (oder dieses Fahrzeug
-    -- gar nicht Teil des aktuellen Service ist) UND keine Restzeit mehr da ist,
-    -- raeumen wir die spec hier auf, statt das Fahrzeug dauerhaft gesperrt zu lassen.
     local function isSpecOrphaned(s)
         if s == nil or s.isServiceActive ~= true then return false end
         local rt = ExtendedVehicleMaintenance.spec_serviceRuntime
         local belongsToActiveRuntime = rt ~= nil and rt.active == true
             and evmIsRuntimeServiceVehicle(rootVehicle, rt)
         if belongsToActiveRuntime then return false end
-        -- Kein laufender Service fuer dieses Fahrzeug: Spec sollte nicht aktiv sein.
         local remainingMs = tonumber(s.serviceRemainingGameMs or 0) or 0
         local endAbsHours = tonumber(s.serviceEndAbsHours or 0) or 0
         local absRemaining = endAbsHours > 0 and ((endAbsHours - ExtendedVehicleMaintenance.getCurrentAbsHours()) * 3600000) or 0
@@ -1264,14 +1220,7 @@ local function evmGetActiveServiceSpec(vehicle)
     end
 
     local runtime = ExtendedVehicleMaintenance.spec_serviceRuntime
-    -- BUGFIX (zwei identische Trecker / "kein Motorstart nach Service-Ende"):
-    -- Frueher wurde hier ueber evmVehicleMatchesPersist gematched - das ist nur ein
-    -- schwacher configFileName/ownerFarmId-Vergleich und matcht ZWEI baugleiche Trecker
-    -- des gleichen Spielers gleichermassen. Dadurch bekam der zweite Trecker:
-    --   1. faelschlich isServiceActive=true gesetzt (-> war auch gesperrt)
-    --   2. dieser Wert wurde in seine eigene Spec persistiert -> blieb auch nach
-    --      Service-Ende gesetzt (-> Motor ging nicht mehr an, erst nach Reset).
-    -- Loesung: strikt per Objekt-Identitaet pruefen.
+
     if runtime ~= nil and runtime.active == true and runtime.pendingLockData ~= nil and evmIsRuntimeServiceVehicle(rootVehicle, runtime) then
         local pendingRemainingMs = math.max(0, tonumber(runtime.pendingLockData.serviceRemainingGameMs or runtime.totalDurationMs or 0) or 0)
         if (runtime.pendingLockData.serviceEndAbsHours or 0) > 0 then
@@ -1436,7 +1385,6 @@ end
 local function evmCanTabToVehicle(vehicle)
     local rootVehicle = evmNormalizeVehicle(vehicle)
     if rootVehicle == nil or rootVehicle.rootNode == nil then return false end
-    -- Fahrzeuge die in Wartung sind NICHT als Tab-Ziel zulassen
     if evmIsLockedForInput(rootVehicle) then return false end
     if rootVehicle.spec_enterable == nil then return false end
     local checks = { "getCanBeSelected", "getCanBeTabbable", "getCanSwitchTo", "getCanBeSwitchedTo", "getIsSelectable" }
@@ -1458,7 +1406,7 @@ local function evmFindNextUnlockedTabVehicle(lockedVehicle)
     for i, vehicle in ipairs(vehicles) do
         if vehicle == lockedRoot then startIndex = i; break end
     end
-    -- Wenn gesperrtes Fahrzeug nicht in Liste: von Anfang an suchen
+
     if startIndex == nil then
         for _, candidate in ipairs(vehicles) do
             if evmCanTabToVehicle(candidate) then
@@ -1467,7 +1415,7 @@ local function evmFindNextUnlockedTabVehicle(lockedVehicle)
         end
         return nil
     end
-    -- Von gesperrtem Fahrzeug aus vorwärts suchen (dieses selbst überspringen)
+  
     for step = 1, #vehicles - 1 do
         local idx = (startIndex % #vehicles) + 1
         startIndex = idx
@@ -1538,26 +1486,50 @@ evmIsLockedForInput = function(vehicle)
         return true
     end
 
-    -- EVM v13 MP-Service-Lock-Fix:
-    -- Lokaler EnterLock kommt im MP vor dem Server-State/Runtime-Spec.
-    -- Darum erst den EnterLock pruefen und den HardLock nicht sofort loeschen.
     local runtime = ExtendedVehicleMaintenance.spec_serviceRuntime
     local rootNode = rootVehicle.rootNode
     if runtime ~= nil and runtime.enterLocks ~= nil and rootNode ~= nil then
         local lock = runtime.enterLocks[rootNode]
         if lock ~= nil and lock.active == true then
-            return true
+            local lockedSpec = evmGetVehicleSpec(rootVehicle)
+            local lockedRemaining = 0
+            if lockedSpec ~= nil and lockedSpec.isServiceActive == true then
+                lockedRemaining = evmGetServiceRemainingMs(lockedSpec, rootVehicle)
+            end
+
+            if lockedSpec ~= nil and lockedSpec.isServiceActive == true and lockedRemaining > 0 then
+                return true
+            end
+
+            lock.active = false
+            runtime.enterLocks[rootNode] = nil
+            if ExtendedVehicleMaintenance.removeHardVehicleLock ~= nil then
+                pcall(ExtendedVehicleMaintenance.removeHardVehicleLock, rootVehicle)
+            end
+            if ExtendedVehicleMaintenance.removeEnterLock ~= nil then
+                pcall(ExtendedVehicleMaintenance.removeEnterLock, rootVehicle)
+            end
+            if rootVehicle.spec_enterable ~= nil then
+                rootVehicle.spec_enterable.canBeEntered = true
+            end
+            rootVehicle._evmHardLockActive = false
+            return false
         end
     end
 
     if rootVehicle._evmHardLockActive == true then
-        local hardLock = ExtendedVehicleMaintenance._hardLockVehicles ~= nil and ExtendedVehicleMaintenance._hardLockVehicles[rootVehicle] or nil
-        local age = (g_time or 0) - (hardLock ~= nil and (hardLock.installedAt or 0) or 0)
-        if hardLock ~= nil and age < 10000 then
-            return true
+        
+        
+        if ExtendedVehicleMaintenance.removeHardVehicleLock ~= nil then
+            pcall(ExtendedVehicleMaintenance.removeHardVehicleLock, rootVehicle)
         end
-        ExtendedVehicleMaintenance.removeHardVehicleLock(rootVehicle)
-        ExtendedVehicleMaintenance.removeEnterLock(rootVehicle)
+        if ExtendedVehicleMaintenance.removeEnterLock ~= nil then
+            pcall(ExtendedVehicleMaintenance.removeEnterLock, rootVehicle)
+        end
+        if rootVehicle.spec_enterable ~= nil then
+            rootVehicle.spec_enterable.canBeEntered = true
+        end
+        rootVehicle._evmHardLockActive = false
         return false
     end
 
@@ -1640,7 +1612,6 @@ local function evmResolveInputLockVehicle(vehicle)
     return rootVehicle
 end
 
-
 local function evmGetScaledMissionTimeMs()
     local mission = g_currentMission
     local now = 0
@@ -1659,8 +1630,6 @@ local function evmSyncRuntimeRemaining(rootVehicle, remaining, endAbsHours)
         return
     end
 
-    -- BUGFIX (zwei identische Trecker): rootVehicle muss strikt das aktuelle
-    -- Service-Vehicle sein, sonst wird die Restzeit fuer das falsche Fahrzeug ueberschrieben.
     if runtime.pendingLockData ~= nil and (rootVehicle == nil or evmIsRuntimeServiceVehicle(rootVehicle, runtime)) then
         runtime.pendingLockData.serviceRemainingGameMs = remaining
         runtime.pendingLockData.serviceEndAbsHours = endAbsHours or 0
@@ -1686,9 +1655,7 @@ evmGetServiceRemainingMs = function(activeSpec, vehicle)
     local remaining = math.max(0, tonumber(activeSpec.serviceRemainingGameMs or 0) or 0)
 
     local runtime = ExtendedVehicleMaintenance.spec_serviceRuntime
-    -- BUGFIX (zwei identische Trecker): nicht ueber configFileName-Match sondern strikt
-    -- per Objekt-Identitaet. Sonst koennte beim zweiten baugleichen Trecker die Restzeit
-    -- des Service-Trecker mitberechnet werden.
+
     if runtime ~= nil and runtime.pendingLockData ~= nil and (rootVehicle == nil or evmIsRuntimeServiceVehicle(rootVehicle, runtime)) then
         if runtime.pendingLockData.serviceEndRealMs ~= nil and (g_time or 0) > 0 then
             local realRemaining = evmRealMsToGameMs(math.max(0, (runtime.pendingLockData.serviceEndRealMs - (g_time or 0))))
@@ -1756,7 +1723,7 @@ local function evmGetServiceLockMessage(vehicle)
 
     if remainingMs <= 0 then
         local runtime = ExtendedVehicleMaintenance.spec_serviceRuntime
-        -- BUGFIX (zwei identische Trecker): strikt per Objekt-Identitaet pruefen
+ 
         if runtime ~= nil and runtime.pendingLockData ~= nil and evmIsRuntimeServiceVehicle(rootVehicle, runtime) then
             remainingMs = tonumber(runtime.pendingLockData.serviceRemainingGameMs or runtime.totalDurationMs or 0) or 0
         end
@@ -1834,10 +1801,10 @@ local function evmClearControlledVehicleIfLocked(vehicle)
 
     if rootVehicle.spec_enterable ~= nil then
         rootVehicle.spec_enterable.isEntered = false
-                rootVehicle.spec_enterable.controller = nil -- EVM: needed to fully detach locked service vehicle; keep playerStyle/player/controllerName intact.
+                rootVehicle.spec_enterable.controller = nil
         rootVehicle.spec_enterable.controllerUserId = 0
         rootVehicle.spec_enterable.enteredFarmId = 0
-        rootVehicle.spec_enterable.canBeEntered = false -- EVM: MP-Client lokal sperren; TAB-Umleitung laeuft ueber installGlobalInputLocks()
+        rootVehicle.spec_enterable.canBeEntered = false 
     end
 end
 
@@ -1851,8 +1818,7 @@ function ExtendedVehicleMaintenance.installGlobalInputLocks()
             if evmIsLockedForInput(vehicle) then
                 evmShowServiceLockWarning(vehicle, 2600)
                 evmClearControlledVehicleIfLocked(vehicle)
-                -- Kein automatisches Weiterleiten ins naechste Fahrzeug.
-                -- Spieler soll stehen bleiben und die Warnung sehen.
+
                 return false
             end
             return runtime._origRequestToEnterVehicle(player, targetVehicle, ...)
@@ -2040,9 +2006,6 @@ function ExtendedVehicleMaintenance.isVehicleInServiceOrPending(vehicle)
             end
         end
 
-        -- BUGFIX (zwei identische Trecker): hier nicht mehr per evmVehicleMatchesPersist
-        -- vergleichen, weil das beide baugleichen Trecker erfasst. Stattdessen ueber
-        -- die strenge Objekt-/RootNode-Identitaetspruefung gehen.
         if runtime.pendingLockData ~= nil and evmIsRuntimeServiceVehicle(rootVehicle, runtime) then
             return true
         end
@@ -2077,45 +2040,36 @@ function ExtendedVehicleMaintenance.registerOverwrittenFunctions(vehicleType)
     SpecializationUtil.registerOverwrittenFunction(vehicleType, "getCanBeUsed", ExtendedVehicleMaintenance.getCanBeUsed)
     SpecializationUtil.registerOverwrittenFunction(vehicleType, "getCanBeRepaired", ExtendedVehicleMaintenance.getCanBeRepaired)
     SpecializationUtil.registerOverwrittenFunction(vehicleType, "getRepairPrice", ExtendedVehicleMaintenance.getRepairPrice)
-    -- v17: Wenn ein Anbaugeraet/Anhaenger ueber den Vanilla-"Reparieren"-Button am Haendler
-    -- repariert wird, sollen aktive EVM-Pannen (flatTire, hydraulicLeak, brakeFault) ebenfalls
-    -- aufgehoben werden. Sonst wuerde z.B. ein platter Reifen visuell heil aussehen, aber
-    -- spec.failureType weiter "flatTire" bleiben und beim naechsten Tick wieder triggern.
+
     SpecializationUtil.registerOverwrittenFunction(vehicleType, "repairVehicle", ExtendedVehicleMaintenance.repairVehicle)
-    -- v21: Im Haendler-Menue ruft FS25 NICHT getRepairPrice() auf, sondern andere Funktionen.
-    -- Welche genau weiss man nicht ohne Spielsourcen, deshalb hooken wir alle plausiblen Kandidaten
-    -- mit einem Safe-Wrapper. Wenn die Funktion auf vehicleType.functions nicht existiert, ueberspringen.
-    -- Beobachtung: Vanilla-Fendt zeigt "REPARIEREN (€2.247)" trotz getRepairPrice-Hook -> es gibt
-    -- mind. eine zusaetzliche Funktion die der Haendler benutzt.
+
     local _evmExtraRepairFns = {
-        "getRepairShopPrice",        -- Haendler-Dialog (Verdacht)
-        "getRepairShopBasePrice",    -- alternative Schreibweise
-        "getDailyUpkeep",             -- taegliche Reparaturkosten - vermutlich nicht der Button, aber sicher ist sicher
-        "getSellPrice",               -- nicht repair, aber gleicher Mechanismus
+        "getRepairShopPrice",      
+        "getRepairShopBasePrice",  
+        "getDailyUpkeep",           
+        "getSellPrice",           
     }
     for _, fnName in ipairs(_evmExtraRepairFns) do
         if vehicleType.functions ~= nil and vehicleType.functions[fnName] ~= nil
             and ExtendedVehicleMaintenance["evmHook_" .. fnName] ~= nil then
             local ok, err = pcall(SpecializationUtil.registerOverwrittenFunction, vehicleType, fnName, ExtendedVehicleMaintenance["evmHook_" .. fnName])
             if not ok then
-                print(string.format("[EVM] WARN: Konnte %s nicht hooken: %s", fnName, tostring(err)))
+                evmPrint(string.format("[EVM] WARN: Konnte %s nicht hooken: %s", fnName, tostring(err)))
             else
                 if ExtendedVehicleMaintenance.debug == true and not ExtendedVehicleMaintenance._loggedRepairFns then
-                    print(string.format("[EVM] Repair-Hook aktiv: %s", fnName))
+                    evmPrint(string.format("[EVM] Repair-Hook aktiv: %s", fnName))
                 end
             end
         end
     end
 
-    -- v21: Diagnose - einmalig loggen welche Repair-Funktionen FS25 ueberhaupt hat.
-    -- Hilft beim Tracking welcher Hook das Haendler-Menue wirklich beeinflusst.
     if not ExtendedVehicleMaintenance._loggedRepairFns and vehicleType.functions ~= nil then
         ExtendedVehicleMaintenance._loggedRepairFns = true
         local found = {}
         for _, fnName in ipairs({"getRepairPrice","getRepairShopPrice","getRepairShopBasePrice","getCanBeRepaired","getDailyUpkeep","repairVehicle"}) do
             if vehicleType.functions[fnName] ~= nil then table.insert(found, fnName) end
         end
-        print(string.format("[EVM] Repair-Funktionen auf vehicleType (%s): %s", tostring(vehicleType.name or "?"), table.concat(found, ", ")))
+        evmPrint(string.format("[EVM] Repair-Funktionen auf vehicleType (%s): %s", tostring(vehicleType.name or "?"), table.concat(found, ", ")))
     end
     SpecializationUtil.registerOverwrittenFunction(vehicleType, "showInfo", ExtendedVehicleMaintenance.showInfo)
     SpecializationUtil.registerOverwrittenFunction(vehicleType, "getIsEnterable", ExtendedVehicleMaintenance.getIsEnterable)
@@ -2147,7 +2101,7 @@ end
 
 function ExtendedVehicleMaintenance.registerSpecialization()
     if g_specializationManager == nil then
-        print("[EVM] registerSpecialization skipped: g_specializationManager=nil")
+        evmPrint("[EVM] registerSpecialization skipped: g_specializationManager=nil")
         return nil
     end
 
@@ -2171,7 +2125,7 @@ function ExtendedVehicleMaintenance.registerSpecialization()
     end)
 
     if not ok then
-        print("[EVM] registerSpecialization with env failed, retry without env: " .. tostring(err))
+        evmPrint("[EVM] registerSpecialization with env failed, retry without env: " .. tostring(err))
         pcall(function()
             g_specializationManager:addSpecialization(shortName, className, fileName, nil)
         end)
@@ -2183,20 +2137,20 @@ function ExtendedVehicleMaintenance.registerSpecialization()
     end
 
     if spec == nil then
-        print("[EVM] registerSpecialization FAILED: not found as '" .. fullName .. "' or '" .. shortName .. "'")
+        evmPrint("[EVM] registerSpecialization FAILED: not found as '" .. fullName .. "' or '" .. shortName .. "'")
     end
     return spec
 end
 
 function ExtendedVehicleMaintenance.addSpecializationToVehicleTypes(vehicleTypesArg)
     if g_vehicleTypeManager == nil then
-        print("[EVM] addSpecializationToVehicleTypes skipped: g_vehicleTypeManager=nil")
+        evmPrint("[EVM] addSpecializationToVehicleTypes skipped: g_vehicleTypeManager=nil")
         return 0
     end
 
     local spec = ExtendedVehicleMaintenance.registerSpecialization()
     if spec == nil then
-        print("[EVM] addSpecializationToVehicleTypes: registerSpecialization returned nil, aborting")
+        evmPrint("[EVM] addSpecializationToVehicleTypes: registerSpecialization returned nil, aborting")
         return 0
     end
 
@@ -2265,10 +2219,6 @@ function ExtendedVehicleMaintenance.addSpecializationToVehicleTypes(vehicleTypes
             else
                 local didAdd = false
 
-                -- FS25: In diesem frühen TypeManager-Hook erzeugt addSpecialization() bei manchen
-                -- Loads zwar keinen Fehler, aber am Fahrzeug entsteht später trotzdem keine spec_*-Tabelle.
-                -- Deshalb patchen wir VOR finalizeTypes direkt die Type-Definition. Das ist kein
-                -- Runtime-Fallback: es gibt weiterhin keine nachträglich erzeugten Fahrzeug-Specs.
                 if vehicleType.specializationNames ~= nil and not listHasSpecName(vehicleType.specializationNames, ExtendedVehicleMaintenance.SPEC_NAME) then
                     table.insert(vehicleType.specializationNames, fullSpecName)
                     didAdd = true
@@ -2290,7 +2240,7 @@ function ExtendedVehicleMaintenance.addSpecializationToVehicleTypes(vehicleTypes
     end
 
     ExtendedVehicleMaintenance._vehicleTypesPatched = added > 0 or skipped > 0
-    print(string.format("[EVM] addSpecializationToVehicleTypes: checked=%d added=%d skipped=%d failed=%d patched=%s mode=typePatchPlusRuntimeRepair", checked, added, skipped, failed, tostring(ExtendedVehicleMaintenance._vehicleTypesPatched)))
+    evmPrint(string.format("[EVM] addSpecializationToVehicleTypes: checked=%d added=%d skipped=%d failed=%d patched=%s mode=typePatchPlusRuntimeRepair", checked, added, skipped, failed, tostring(ExtendedVehicleMaintenance._vehicleTypesPatched)))
     return added
 end
 function ExtendedVehicleMaintenance.registerGlobalSavegameXMLPaths()
@@ -2319,33 +2269,20 @@ function ExtendedVehicleMaintenance.getRemainingMaintenance(vehicle)
 
     local elapsedOperatingHours = math.max(0, (currentOperatingTimeMs - lastServiceOperatingTimeMs) / (60 * 60 * 1000))
     local elapsedDays = math.max(0, (currentGameTimeMs - lastServiceGameTimeMs) / (24 * 60 * 60 * 1000))
-
-    -- v16/v19: Realistische Verschleiß-Rate.
-    -- Ein nagelneues Fahrzeug verbraucht das Wartungsintervall mit Faktor 1.0.
-    -- Ein altes Fahrzeug (viele Gesamt-Betriebsstunden) bzw. ein beschädigtes Fahrzeug
-    -- verbraucht das Intervall schneller -> der nächste Service kommt früher.
-    -- v19: Multiplier abgemildert, weil bei hohem Time-Scale + Drescher + Schaden
-    -- die Wartung sonst nach 30 Echt-Minuten faellig war.
     local totalOperatingHours = math.max(0, currentOperatingTimeMs / (60 * 60 * 1000))
     local damage = evmGetVehicleDamage(vehicle) or 0
-
-    -- Alters-Faktor: ab 200 Bh leicht erhöht, bei 1000 Bh ca. +35%, bei >2000 Bh +55%.
-    -- v19: Sanftere Kurve (vorher max +80%).
     local ageFactor = 1.0
     if totalOperatingHours > 100 then
         ageFactor = 1.0 + math.min(0.55, math.log(1.0 + (totalOperatingHours - 100) / 300) * 0.32)
     end
-
-    -- Schadens-Faktor: erst ab 35% Schaden spürbar (vorher 20%), max +35% Verschleiß
-    -- bei 100% Schaden (vorher +60%). Kleinere Schaeden treiben den Wartungs-Cycle nicht.
+	
     local damageFactor = 1.0
     if damage > 0.35 then
         damageFactor = 1.0 + math.min(0.35, (damage - 0.35) * 0.55)
     end
 
     local wearMultiplier = ageFactor * damageFactor
-    -- v19: Cap auf 1.7 (vorher 2.5). Selbst extrem altes + beschaedigtes Fahrzeug
-    -- hat noch ~60% des nominalen Wartungsintervalls.
+
     if wearMultiplier > 1.70 then wearMultiplier = 1.70 end
     if wearMultiplier < 1.0 then wearMultiplier = 1.0 end
 
@@ -2371,9 +2308,6 @@ function ExtendedVehicleMaintenance.calculateServiceValues(vehicle)
     local catCostFactor = tonumber(cat.costFactor or 1.0) or 1.0
     local maxH = tonumber(cat.maxHours or ExtendedVehicleMaintenance.MAX_HOURS) or 25
     local maxD = tonumber(cat.maxDays  or ExtendedVehicleMaintenance.MAX_DAYS)  or 9999
-
-    -- v22: Service gibt wieder einen vollen 25-Betriebsstunden-Takt.
-    -- Schaden beeinflusst Kosten/Dauer, aber nicht mehr den Grund-Takt im HUD.
     local hoursAdded = evmClamp(ExtendedVehicleMaintenance.SERVICE_INTERVAL_HOURS or 25, 1, maxH)
     local daysAdded  = maxD
     local cost = math.floor(math.max(isMotorized and 350 or 180,
@@ -2627,9 +2561,7 @@ function ExtendedVehicleMaintenance.forceVehicleStandstill(vehicle)
 
     if rootVehicle.spec_drivable ~= nil then
         local specDrivable = rootVehicle.spec_drivable
-        -- EVM fix: remember drivable limits before service-lock overwrites them.
-        -- Older builds left maxAcceleration/maxBackwardAcceleration=0 and handBrakeActive=true
-        -- after service end, so the vehicle looked repaired but still could not move/start properly.
+
         if rootVehicle._evmSavedServiceDrivableState == nil then
             rootVehicle._evmSavedServiceDrivableState = {
                 maxAcceleration = specDrivable.maxAcceleration,
@@ -2674,9 +2606,6 @@ function ExtendedVehicleMaintenance.forceLeaveVehicle(vehicle)
     local left = false
     local playerWasInThisVehicle = evmIsPlayerInThisVehicle(rootVehicle)
 
-    -- Only run the expensive / invasive leave logic when the player really sits in
-    -- THIS vehicle. The previous version cleared g_localPlayer every update and
-    -- therefore kicked the player out of unrelated vehicles too.
     if playerWasInThisVehicle then
         if rootVehicle.leaveVehicle ~= nil then
             pcall(rootVehicle.leaveVehicle, rootVehicle)
@@ -2687,9 +2616,7 @@ function ExtendedVehicleMaintenance.forceLeaveVehicle(vehicle)
         if rootVehicle.doLeaveVehicle ~= nil then
             pcall(rootVehicle.doLeaveVehicle, rootVehicle)
         end
-        -- EVM v12: wie in BACKUP5 wieder sauber aus dem Fahrzeug ausklinken.
-        -- Wichtig: playerStyle/player/controllerName bleiben aber unangetastet,
-        -- weil genau deren Loeschen im MP unsichtbare Spieler/Fahrzeuge erzeugen konnte.
+
         if rootVehicle.onLeaveVehicle ~= nil then
             pcall(rootVehicle.onLeaveVehicle, rootVehicle)
         end
@@ -2734,14 +2661,10 @@ function ExtendedVehicleMaintenance.forceLeaveVehicle(vehicle)
     if rootVehicle.spec_enterable ~= nil then
         local specEnterable = rootVehicle.spec_enterable
         specEnterable.isEntered = false
-                specEnterable.controller = nil -- EVM: needed to fully detach locked service vehicle; keep playerStyle/player/controllerName intact.
+                specEnterable.controller = nil 
         specEnterable.controllerUserId = 0
         specEnterable.enteredFarmId = 0
-        -- MP-Safety: do NOT clear playerStyle/currentPlayerStyle/player/controllerName here.
-        -- GIANTS uses those tables while processing enter/leave and AIJobVehicle packets;
-        -- clearing them can make the player/vehicle render invisible or crash with
-        -- AIJobVehicle.lua: attempt to index nil with 'name'.
-        specEnterable.canBeEntered = false -- EVM: MP-Client lokal sperren; TAB-Umleitung laeuft ueber installGlobalInputLocks()
+        specEnterable.canBeEntered = false 
         left = true
     end
 
@@ -2803,23 +2726,27 @@ function ExtendedVehicleMaintenance.installEnterLock(vehicle, mode)
                             evmClearControlledVehicleIfLocked(entry.vehicle)
                             if entry.vehicle.spec_enterable ~= nil then
                                 entry.vehicle.spec_enterable.isEntered = false
-                                -- EVM v12: BACKUP5-Verhalten fuer echten Service-Enter-Lock.
-                                -- controller muss geloest werden, sonst kann GIANTS den Sitz lokal noch als belegt/enterbar behandeln.
+
                                 entry.vehicle.spec_enterable.controller = nil
                                 entry.vehicle.spec_enterable.controllerUserId = 0
-                                entry.vehicle.spec_enterable.canBeEntered = false -- EVM: MP-Client lokal sperren; TAB-Umleitung laeuft ueber installGlobalInputLocks()
+                                entry.vehicle.spec_enterable.canBeEntered = false 
                             end
                         else
                             entry.active = false
                             if entry.vehicle.spec_enterable ~= nil then
                                 entry.vehicle.spec_enterable.canBeEntered = true
                             end
+                            if ExtendedVehicleMaintenance.removeHardVehicleLock ~= nil then
+                                pcall(ExtendedVehicleMaintenance.removeHardVehicleLock, entry.vehicle)
+                            end
+                            if ExtendedVehicleMaintenance.removeEnterLock ~= nil then
+                                pcall(ExtendedVehicleMaintenance.removeEnterLock, entry.vehicle)
+                            end
+                            entry.vehicle._evmHardLockActive = false
                         end
                     end
                 end
 
-                -- MP-Fix: kein permanentes Persist-Resolving im Mission-Update.
-                -- Der Service-State kommt per Stream/Event/Watcher. Das verhindert den 100%-Join-Haenger.
             end)
         end
     end
@@ -2828,7 +2755,7 @@ function ExtendedVehicleMaintenance.installEnterLock(vehicle, mode)
         rootVehicle.spec_enterable.isEntered = false
         rootVehicle.spec_enterable.controller = nil
         rootVehicle.spec_enterable.controllerUserId = 0
-        rootVehicle.spec_enterable.canBeEntered = false -- EVM: MP-Client lokal sperren; TAB-Umleitung laeuft ueber installGlobalInputLocks()
+        rootVehicle.spec_enterable.canBeEntered = false 
     end
 end
 
@@ -2863,19 +2790,13 @@ function ExtendedVehicleMaintenance.installHardVehicleLock(vehicle)
     local rootVehicle = vehicle.rootVehicle or vehicle
     local lock = ExtendedVehicleMaintenance._hardLockVehicles[rootVehicle]
     if lock ~= nil then
-        -- Lock ist bereits installiert. Trotzdem pruefen, ob der Spieler durch
-        -- einen Race ins Fahrzeug gekommen ist - dann rauswerfen.
+
         if evmIsPlayerInThisVehicle ~= nil and evmIsPlayerInThisVehicle(rootVehicle) then
             ExtendedVehicleMaintenance.forceLeaveVehicle(rootVehicle)
         end
         return true
     end
 
-    -- WICHTIG: Wenn der Spieler genau in dem Moment im Fahrzeug sitzt, in dem
-    -- der Lock installiert wird (MP-Race: Spieler ist eingestiegen bevor das
-    -- Service-Event beim Client ankam), MUSS er VOR dem Methoden-Hook rausgeworfen
-    -- werden. Sonst greifen die Hooks auf Aussteig-Routinen zu und der Spieler
-    -- bleibt im Fahrzeug haengen (Alt+F4-Bug).
     if evmIsPlayerInThisVehicle ~= nil and evmIsPlayerInThisVehicle(rootVehicle) then
         ExtendedVehicleMaintenance.forceLeaveVehicle(rootVehicle)
     end
@@ -2976,12 +2897,6 @@ function ExtendedVehicleMaintenance.installHardVehicleLock(vehicle)
         end
     end
 
-    -- MP-Fix: Der Einstieg muss auf JEDEM Client lokal geblockt werden.
-    -- Nur die globale requestToEnterVehicle-Umleitung reicht im MP nicht immer,
-    -- weil GIANTS/Mods den Enter-Vorgang teilweise direkt am Fahrzeug ausloesen.
-    -- Deshalb werden hier zusaetzlich die fahrzeuglokalen Enterable-Methoden
-    -- blockiert. TAB wird weiterhin ueber installGlobalInputLocks() auf das
-    -- naechste freie Fahrzeug umgeleitet.
     lock.extraMethodLocks = {}
 
     local function blockEnter(selfVehicle, ...)
@@ -3023,7 +2938,6 @@ function ExtendedVehicleMaintenance.installHardVehicleLock(vehicle)
         end
     end)
 
-
     lockMethod("getCanStartMotor", function(original)
         return function(selfVehicle, ...)
             if evmIsLockedForInput(selfVehicle) then return false end
@@ -3031,24 +2945,13 @@ function ExtendedVehicleMaintenance.installHardVehicleLock(vehicle)
         end
     end)
 
-    lockMethod("getCanMotorRun", function(original)
-        return function(selfVehicle, ...)
-            if evmIsLockedForInput(selfVehicle) then return false end
-            return original(selfVehicle, ...)
-        end
-    end)
-
-    -- MP-Fix: getCanBeSelected/getCanBeUsed werden nicht mehr hart ueberschrieben.
-    -- Das verhinderte TAB/AIJobVehicle im Multiplayer; Einstieg bleibt ueber Enter-Hooks gesperrt.
-
-    -- MP-Fix: getCanBeSelected/getCanBeUsed werden nicht mehr hart ueberschrieben.
-    -- Das verhinderte TAB/AIJobVehicle im Multiplayer; Einstieg bleibt ueber Enter-Hooks gesperrt.
+    
+    
+    
 
     lockMethod("setIsEntered", function(original)
         return function(selfVehicle, isEntered, ...)
-            -- WICHTIG: Aussteigen (isEntered=false) NIEMALS blocken, sonst
-            -- bleibt der Spieler im Fahrzeug haengen wenn er drin war als der
-            -- Service gestartet wurde (MP-Race).
+
             if isEntered == true and evmIsLockedForInput(selfVehicle) then
                 blockEnter(selfVehicle)
                 return false
@@ -3056,15 +2959,6 @@ function ExtendedVehicleMaintenance.installHardVehicleLock(vehicle)
             return original(selfVehicle, isEntered, ...)
         end
     end)
-
-    -- WICHTIG: 'interact' und 'requestActionEventEnter' werden NICHT mehr
-    -- pauschal geblockt. 'interact' ist die generische Q-Taste-Aktion und
-    -- umfasst je nach Kontext Enter UND Leave - ein Block hier verhindert
-    -- das Aussteigen, was im MP zu einem Hard-Stuck-Bug fuehrt
-    -- (Spieler muss Alt+F4 druecken).
-    -- Der Einstieg wird zuverlaessig ueber getCanBeEntered, getIsEnterable,
-    -- setIsEntered, sowie die globalen Hooks (requestToEnterVehicle,
-    -- setCurrentVehicle, mission.enterVehicle) verhindert.
     for _, methodName in ipairs({
         "enterVehicle",
         "doEnterVehicle",
@@ -3081,7 +2975,7 @@ function ExtendedVehicleMaintenance.installHardVehicleLock(vehicle)
 
     if rootVehicle.spec_enterable ~= nil then
         rootVehicle.spec_enterable.isEntered = false
-                rootVehicle.spec_enterable.controller = nil -- EVM: needed to fully detach locked service vehicle; keep playerStyle/player/controllerName intact.
+                rootVehicle.spec_enterable.controller = nil 
         rootVehicle.spec_enterable.controllerUserId = 0
         rootVehicle.spec_enterable.enteredFarmId = 0
         rootVehicle.spec_enterable.canBeEntered = false
@@ -3100,8 +2994,68 @@ function ExtendedVehicleMaintenance.removeHardVehicleLock(vehicle)
 
     local rootVehicle = vehicle.rootVehicle or vehicle
     local lock = ExtendedVehicleMaintenance._hardLockVehicles[rootVehicle]
+
+    
+    
+    
+    
+    local function evmEmergencyUnlockDriveState()
+        rootVehicle._evmHardLockActive = false
+        if rootVehicle.spec_enterable ~= nil then
+            rootVehicle.spec_enterable.canBeEntered = true
+        end
+        if rootVehicle.spec_drivable ~= nil then
+            local sd = rootVehicle.spec_drivable
+            local saved = rootVehicle._evmSavedServiceDrivableState
+            sd.axisForward = 0
+            sd.axisSide = 0
+            sd.accelerationAxis = 0
+            sd.brakeInput = saved ~= nil and saved.brakeInput or 0
+            sd.handBrakeActive = saved ~= nil and saved.handBrakeActive or false
+            if saved ~= nil then
+                sd.maxAcceleration = saved.maxAcceleration
+                sd.maxBackwardAcceleration = saved.maxBackwardAcceleration
+            end
+            if tonumber(sd.maxAcceleration or 0) <= 0 then sd.maxAcceleration = 1 end
+            if tonumber(sd.maxBackwardAcceleration or 0) <= 0 then sd.maxBackwardAcceleration = 1 end
+            if sd.lastInputValues ~= nil then
+                sd.lastInputValues.axisForward = 0
+                sd.lastInputValues.axisSide = 0
+            end
+            rootVehicle._evmSavedServiceDrivableState = nil
+        end
+        if rootVehicle.spec_motorized ~= nil and rootVehicle.spec_motorized.motor ~= nil then
+            local motor = rootVehicle.spec_motorized.motor
+            if type(motor.setSpeedLimit) == "function" then
+                pcall(motor.setSpeedLimit, motor, 9999)
+            end
+            if type(motor.setThrottle) == "function" then pcall(motor.setThrottle, motor, 0) end
+            if type(motor.setExternalTorque) == "function" then pcall(motor.setExternalTorque, motor, nil) end
+            
+            
+            if motor.speedLimit ~= nil then motor.speedLimit = 9999 end
+            if motor.currentSpeedLimit ~= nil then motor.currentSpeedLimit = 9999 end
+            if motor.maxForwardSpeed ~= nil and tonumber(motor.maxForwardSpeed) == 0 then motor.maxForwardSpeed = 100 end
+            if motor.maxBackwardSpeed ~= nil and tonumber(motor.maxBackwardSpeed) == 0 then motor.maxBackwardSpeed = 30 end
+        end
+    end
+
     if lock == nil then
+        evmEmergencyUnlockDriveState()
         return
+    end
+
+    
+    
+    
+    
+    if lock.extraMethodLocks ~= nil then
+        for methodName, originalFunction in pairs(lock.extraMethodLocks) do
+            if originalFunction ~= nil then
+                rootVehicle[methodName] = originalFunction
+            end
+        end
+        lock.extraMethodLocks = nil
     end
 
     if rootVehicle.spec_motorized ~= nil and rootVehicle.spec_motorized.motor ~= nil then
@@ -3161,13 +3115,8 @@ function ExtendedVehicleMaintenance.removeHardVehicleLock(vehicle)
         rootVehicle.interact = lock.origInteract
     end
 
-    if lock.extraMethodLocks ~= nil then
-        for methodName, originalFunction in pairs(lock.extraMethodLocks) do
-            if originalFunction ~= nil then
-                rootVehicle[methodName] = originalFunction
-            end
-        end
-    end
+    
+    
 
     rootVehicle._evmHardLockActive = false
     ExtendedVehicleMaintenance._hardLockVehicles[rootVehicle] = nil
@@ -3175,6 +3124,8 @@ function ExtendedVehicleMaintenance.removeHardVehicleLock(vehicle)
     if rootVehicle.spec_enterable ~= nil then
         rootVehicle.spec_enterable.canBeEntered = true
     end
+
+    evmEmergencyUnlockDriveState()
 end
 
 function ExtendedVehicleMaintenance.enforceLockedVehicle(vehicle)
@@ -3275,7 +3226,6 @@ function ExtendedVehicleMaintenance.resetVehicleToWorkshop(vehicle)
         end
     end
 
-    -- Fallback: nur Node-Teleport (Objekt bleibt erhalten)
     local x, y, z = ExtendedVehicleMaintenance.getResetTranslation(rootVehicle)
     if x == nil then
         evmDbg("resetVehicleToWorkshop FAILED: no reset position vehicle=%s", tostring(evmGetVehicleName(rootVehicle)))
@@ -3436,10 +3386,38 @@ function ExtendedVehicleMaintenance.findVehicleAfterWorkshopReset(referenceVehic
     return bestVehicle
 end
 
-
 function ExtendedVehicleMaintenance.findVehicleByPersistData(data, oldRootNode)
     local mission = g_currentMission
     if data == nil or mission == nil then
+        return nil
+    end
+
+    if data.rootNode ~= nil and data.rootNode ~= 0 and evmIsValidNode(data.rootNode) then
+        if mission.vehicles ~= nil then
+            for _, vehicle in ipairs(mission.vehicles) do
+                local v = vehicle ~= nil and (vehicle.rootVehicle or vehicle) or nil
+                if v ~= nil and v.rootNode == data.rootNode then
+                    local did = tostring(data.evmInstanceId or data.vehicleInstanceId or "")
+                    if did == "" or evmGetVehicleInstanceId(v) == did then
+                        return v
+                    end
+                end
+            end
+        end
+        if mission.vehicleSystem ~= nil then
+            if mission.vehicleSystem.vehicles ~= nil then
+                for _, vehicle in pairs(mission.vehicleSystem.vehicles) do
+                    local v = vehicle ~= nil and (vehicle.rootVehicle or vehicle) or nil
+                    if v ~= nil and v.rootNode == data.rootNode then
+                        local did = tostring(data.evmInstanceId or data.vehicleInstanceId or "")
+                        if did == "" or evmGetVehicleInstanceId(v) == did then
+                            return v
+                        end
+                    end
+                end
+            end
+        end
+
         return nil
     end
 
@@ -3455,11 +3433,13 @@ function ExtendedVehicleMaintenance.findVehicleByPersistData(data, oldRootNode)
         if candidate.rootNode == nil or candidate.rootNode == 0 then return end
         if not evmVehicleMatchesPersist(candidate, data) then return end
 
+        if oldRootNode ~= nil and candidate.rootNode == oldRootNode then return end
+
         local score = 0
-        if oldRootNode ~= nil and candidate.rootNode ~= oldRootNode then score = score + 500 end
+        if tostring(data.evmInstanceId or "") ~= "" and evmGetVehicleInstanceId(candidate) == tostring(data.evmInstanceId or "") then score = score + 10000 end
         if tostring(candidate.configFileName or "") == tostring(data.configFileName or "") then score = score + 250 end
-        if tostring(candidate.xmlFileName or "") == tostring(data.xmlFileName or "") then score = score + 120 end
-        if tostring(candidate.typeName or "") == tostring(data.typeName or "") then score = score + 80 end
+        if tostring(candidate.xmlFileName or "")   == tostring(data.xmlFileName   or "") then score = score + 120 end
+        if tostring(candidate.typeName  or "")     == tostring(data.typeName      or "") then score = score + 80  end
         if evmGetOwnerFarmIdSafe(candidate) == tonumber(data.ownerFarmId or 0) then score = score + 100 end
 
         if score > bestScore then
@@ -3517,7 +3497,7 @@ function ExtendedVehicleMaintenance.enforceRuntimePersistLock(tag)
         if runtime._persistResolveAttempts >= 12 then
             if runtime._persistResolveAbortedLog ~= true then
                 runtime._persistResolveAbortedLog = true
-                print("[EVM] Persist-Lock resolving abgebrochen: Fahrzeug konnte nach 12 Versuchen nicht sicher gefunden werden")
+                evmPrint("[EVM] Persist-Lock resolving abgebrochen: Fahrzeug konnte nach 12 Versuchen nicht sicher gefunden werden")
             end
             return runtime.rootVehicle
         end
@@ -3603,8 +3583,6 @@ function ExtendedVehicleMaintenance.isServiceable(vehicle)
 
     local rootVehicle = vehicle.rootVehicle or vehicle
 
-    -- Nur Fahrzeuge die man einsteigen und fahren kann (Traktoren, Mähdrescher, etc.)
-    -- Geräte/Anhänger sind vorerst nicht servicierbar
     local hasMotorized = rootVehicle.spec_motorized ~= nil
     local hasEnterable = rootVehicle.spec_enterable ~= nil
     local hasWearable = rootVehicle.spec_wearable ~= nil
@@ -3639,7 +3617,7 @@ function ExtendedVehicleMaintenance.getNearbyServiceVehicle(playerNode)
     end
 
     local ownerFarmId = ExtendedVehicleMaintenance.getLocalFarmId()
-    -- Größerer Radius für Geräte/Anhänger die man von außen serviciert
+  
     local maxDistance = (ExtendedVehicleMaintenance.INTERACTION_RADIUS or 4.5) * 2.2
     local maxDistanceSq = maxDistance * maxDistance
 
@@ -3662,8 +3640,6 @@ function ExtendedVehicleMaintenance.getNearbyServiceVehicle(playerNode)
             return
         end
 
-        -- Für die normale Service-Option nur freie Fahrzeuge wählen.
-        -- Aktive Wartungsfahrzeuge bekommen ihren eigenen Restzeit-Hinweis im F1-Menü.
         if ExtendedVehicleMaintenance.isVehicleInServiceOrPending(rootVehicle) then
             return
         end
@@ -3747,10 +3723,8 @@ function ExtendedVehicleMaintenance.getNearbySelectionEntries(vehicle)
         })
     end
 
-    -- Fahrzeug/Gerät selbst
     addEntry(targetVehicle)
 
-    -- Alle angehängten Implements rekursiv einsammeln
     local function collectImplements(v)
         if v == nil or v.getAttachedImplements == nil then return end
         local ok, implements = pcall(v.getAttachedImplements, v)
@@ -3790,7 +3764,6 @@ function ExtendedVehicleMaintenance.registerGlobalWorkshopAction()
         g_inputBinding:setActionEventActive(actionEventId, false)
     end
 
-    -- Zusätzliche Action: Batterie laden (kein Werkstatt-Bedarf, geht überall am Fahrzeug)
     if InputAction.EVM_CHARGE_BATTERY ~= nil then
         local _, chargeEventId = g_inputBinding:registerActionEvent(InputAction.EVM_CHARGE_BATTERY, ExtendedVehicleMaintenance, ExtendedVehicleMaintenance.actionEventChargeBatteryGlobal, false, true, false, true, nil)
         ExtendedVehicleMaintenance.globalChargeActionEventId = chargeEventId
@@ -3810,16 +3783,14 @@ function ExtendedVehicleMaintenance.removeGlobalWorkshopAction()
     ExtendedVehicleMaintenance.activeSellingPoint = nil
 end
 
--- Sicherstellen dass mindestens die Charge-Action existiert, damit Batterie-Laden auch
--- ohne Werkstatt in der Nähe verfügbar ist.
 function ExtendedVehicleMaintenance.ensureChargeActionRegistered()
     if g_inputBinding == nil or InputAction.EVM_CHARGE_BATTERY == nil then return end
     if ExtendedVehicleMaintenance.globalChargeActionEventId ~= nil then return end
     if ExtendedVehicleMaintenance.globalWorkshopActionEventId == nil then
-        -- Keine andere Action registriert → komplett neu starten.
+
         ExtendedVehicleMaintenance.registerGlobalWorkshopAction()
         if ExtendedVehicleMaintenance.globalWorkshopActionEventId ~= nil then
-            -- Workshop-Action soll inaktiv bleiben wenn keine Werkstatt nahe.
+
             g_inputBinding:setActionEventActive(ExtendedVehicleMaintenance.globalWorkshopActionEventId, false)
         end
     end
@@ -3854,8 +3825,6 @@ function ExtendedVehicleMaintenance.refreshGlobalWorkshopAction(forceSellingPoin
     ExtendedVehicleMaintenance.refreshGlobalChargeAction()
 end
 
--- Batterie-Laden-Action: unabhängig vom Werkstatt-Standort.
--- Aktiv sobald man in einem Fahrzeug sitzt (oder daneben steht) und die Batterie unter Schwelle liegt.
 function ExtendedVehicleMaintenance.refreshGlobalChargeAction()
     local chargeId = ExtendedVehicleMaintenance.globalChargeActionEventId
     if chargeId == nil or g_inputBinding == nil then return end
@@ -3874,7 +3843,6 @@ function ExtendedVehicleMaintenance.refreshGlobalChargeAction()
         return
     end
 
-    -- Bereits im Ladevorgang? Anzeigen aber Action sperren (Status-Anzeige).
     if spec._batteryChargingUntil ~= nil and (g_time or 0) < spec._batteryChargingUntil then
         local remMin = math.ceil((spec._batteryChargingUntil - (g_time or 0)) / 60000)
         g_inputBinding:setActionEventText(chargeId, string.format(evmText("action_evm_chargeBatteryStarted", "Battery charging on %s for %d minutes"), tostring(evmGetVehicleName(vehicle)), remMin))
@@ -3901,7 +3869,6 @@ function ExtendedVehicleMaintenance.refreshGlobalChargeAction()
     g_inputBinding:setActionEventActive(chargeId, true)
 end
 
--- Findet ein Ziel zum Batterie-Laden: Fahrzeug in dem der Spieler sitzt, oder ein nahes Fahrzeug.
 function ExtendedVehicleMaintenance.getChargeBatteryTargetVehicle()
     local mission = g_currentMission
     if mission ~= nil and mission.controlledVehicle ~= nil then
@@ -3915,7 +3882,6 @@ function ExtendedVehicleMaintenance.getChargeBatteryTargetVehicle()
     return ExtendedVehicleMaintenance.getNearbyServiceVehicle(playerNode)
 end
 
--- Handler: Action gedrückt → Batterie laden starten.
 function ExtendedVehicleMaintenance.actionEventChargeBatteryGlobal(_, actionName, inputValue, callbackState, isAnalog)
     if inputValue ~= 1 then return end
 
@@ -3925,7 +3891,6 @@ function ExtendedVehicleMaintenance.actionEventChargeBatteryGlobal(_, actionName
     ExtendedVehicleMaintenance.startBatteryCharging(vehicle)
 end
 
--- Startet Ladevorgang. Auf MP-Client wird ein Event an den Server geschickt.
 function ExtendedVehicleMaintenance.startBatteryCharging(vehicle)
     if vehicle == nil then return end
     vehicle = vehicle.rootVehicle or vehicle
@@ -3941,7 +3906,6 @@ function ExtendedVehicleMaintenance.startBatteryCharging(vehicle)
         return
     end
 
-    -- Bereits im Ladevorgang?
     if spec._batteryChargingUntil ~= nil and (g_time or 0) < spec._batteryChargingUntil then
         return
     end
@@ -3953,8 +3917,6 @@ function ExtendedVehicleMaintenance.startBatteryCharging(vehicle)
     end
 end
 
--- Wird auf dem Server ausgeführt: Geld abziehen, Lock setzen, Charge füllen,
--- nach 15 Echtzeit-Minuten freigeben.
 function ExtendedVehicleMaintenance.applyBatteryCharging(vehicle)
     if vehicle == nil or g_server == nil then return end
     vehicle = vehicle.rootVehicle or vehicle
@@ -3965,19 +3927,15 @@ function ExtendedVehicleMaintenance.applyBatteryCharging(vehicle)
     local cost = ExtendedVehicleMaintenance.BATTERY_CHARGE_COST
     local durationMs = ExtendedVehicleMaintenance.BATTERY_CHARGE_DURATION_MIN * 60 * 1000
 
-    -- Geld abziehen
     local farmId = (vehicle.getOwnerFarmId ~= nil and vehicle:getOwnerFarmId()) or 1
     if g_currentMission ~= nil and g_currentMission.addMoney ~= nil then
         pcall(g_currentMission.addMoney, g_currentMission, -cost, farmId, MoneyType.SHOP_VEHICLE_REPAIR or MoneyType.OTHER, true, true)
     end
 
-    -- Lock und Charging-State setzen
     local now = g_time or 0
     spec._batteryChargingUntil = now + durationMs
     spec._batteryChargingStartedAt = now
 
-    -- Sofort die Batterie auf 100% setzen — physisch lädt sie zwar 15min,
-    -- aber das simulieren wir nur über den Lock. Beim Beenden ist sie voll.
     spec.batteryCharge = 1.0
     spec.batteryVoltage = 12.7
     if spec.failureType == "battery" then
@@ -3986,7 +3944,6 @@ function ExtendedVehicleMaintenance.applyBatteryCharging(vehicle)
         ExtendedVehicleMaintenance.restoreBatteryFailure(vehicle)
     end
 
-    -- Fahrzeug sperren wie beim Service
     ExtendedVehicleMaintenance.installEnterLock(vehicle, ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP or 1)
     ExtendedVehicleMaintenance.installHardVehicleLock(vehicle)
 
@@ -3994,12 +3951,10 @@ function ExtendedVehicleMaintenance.applyBatteryCharging(vehicle)
         pcall(vehicle.raiseDirtyFlags, vehicle, spec.dirtyFlag)
     end
 
-    -- Server pushed neuen State an Clients
     if EVMBatteryStateEvent ~= nil and EVMBatteryStateEvent.sendEvent ~= nil then
         EVMBatteryStateEvent.sendEvent(vehicle, 1.0, 12.7, "", 0)
     end
 
-    -- Watcher: nach Ablauf entsperren
     local runtime = ExtendedVehicleMaintenance.getRuntime ~= nil and ExtendedVehicleMaintenance.getRuntime() or nil
     if runtime ~= nil then
         runtime._serviceWatchers = runtime._serviceWatchers or {}
@@ -4011,7 +3966,7 @@ function ExtendedVehicleMaintenance.applyBatteryCharging(vehicle)
         })
     end
 
-    print(string.format("[EVM] Battery charging started on %s for %d min", tostring(evmGetVehicleName(vehicle)), ExtendedVehicleMaintenance.BATTERY_CHARGE_DURATION_MIN))
+    evmPrint(string.format("[EVM] Battery charging started on %s for %d min", tostring(evmGetVehicleName(vehicle)), ExtendedVehicleMaintenance.BATTERY_CHARGE_DURATION_MIN))
 end
 
 function ExtendedVehicleMaintenance.finishBatteryCharging(vehicle)
@@ -4024,17 +3979,16 @@ function ExtendedVehicleMaintenance.finishBatteryCharging(vehicle)
     spec._batteryChargingUntil = nil
     spec._batteryChargingStartedAt = nil
 
-    -- Locks entfernen
     ExtendedVehicleMaintenance.removeHardVehicleLock(vehicle)
     if vehicle.spec_enterable ~= nil then
         vehicle.spec_enterable.canBeEntered = true
     end
 
-    print(string.format("[EVM] Battery charging finished on %s", tostring(evmGetVehicleName(vehicle))))
+    evmPrint(string.format("[EVM] Battery charging finished on %s", tostring(evmGetVehicleName(vehicle))))
 end
 
 function ExtendedVehicleMaintenance.findNearbySellingPoint()
-    -- Wenn man im Fahrzeug sitzt: das Fahrzeug selbst ist der Service-Ankerpunkt
+    
     local mission = g_currentMission
     if mission ~= nil and mission.controlledVehicle ~= nil then
         local controlled = mission.controlledVehicle.rootVehicle or mission.controlledVehicle
@@ -4085,7 +4039,6 @@ function ExtendedVehicleMaintenance.actionEventStartServiceGlobal(_, actionName,
     ExtendedVehicleMaintenance.actionEventStartServiceAtWorkshop(vehicle, actionName, inputValue, callbackState, isAnalog)
 end
 
-
 function ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(vehicle)
     if vehicle == nil then
         return
@@ -4093,12 +4046,16 @@ function ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(vehicle)
 
     local rootVehicle = vehicle.rootVehicle or vehicle
 
-    -- Always clear both lock layers. This is intentionally safe to call multiple times.
     if ExtendedVehicleMaintenance.removeEnterLock ~= nil then
         pcall(ExtendedVehicleMaintenance.removeEnterLock, rootVehicle)
     end
     if ExtendedVehicleMaintenance.removeHardVehicleLock ~= nil then
         pcall(ExtendedVehicleMaintenance.removeHardVehicleLock, rootVehicle)
+    end
+
+    local runtime = ExtendedVehicleMaintenance.spec_serviceRuntime
+    if runtime ~= nil and runtime.enterLocks ~= nil and rootVehicle.rootNode ~= nil then
+        runtime.enterLocks[rootVehicle.rootNode] = nil
     end
 
     local spec = evmGetVehicleSpec(rootVehicle)
@@ -4114,6 +4071,22 @@ function ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(vehicle)
 
     if rootVehicle.spec_enterable ~= nil then
         rootVehicle.spec_enterable.canBeEntered = true
+        rootVehicle.spec_enterable.isEntered = false
+        rootVehicle.spec_enterable.controller = nil
+        rootVehicle.spec_enterable.controllerUserId = 0
+        rootVehicle.spec_enterable.enteredFarmId = 0
+    end
+
+    if rootVehicle.spec_motorized ~= nil and rootVehicle.spec_motorized.motor ~= nil then
+        local motor = rootVehicle.spec_motorized.motor
+        
+        
+        
+        if type(motor.setSpeedLimit) == "function" then
+            pcall(motor.setSpeedLimit, motor, 9999)
+        end
+        if type(motor.setThrottle) == "function" then pcall(motor.setThrottle, motor, 0) end
+        if type(motor.setEqualizedMotorRpm) == "function" then pcall(motor.setEqualizedMotorRpm, motor, 0) end
     end
 
     if rootVehicle.spec_drivable ~= nil then
@@ -4125,16 +4098,18 @@ function ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(vehicle)
         sd.accelerationAxis = 0
         sd.brakeInput = saved ~= nil and saved.brakeInput or 0
         sd.handBrakeActive = saved ~= nil and saved.handBrakeActive or false
+        sd.doHandbrake = false
+        sd.handbrake = false
+        sd.isHandbrakeActive = false
 
-        -- If this vehicle was already locked by an older build, no saved values exist.
-        -- In that case actively recover from the stuck state instead of leaving zeros behind.
         if saved ~= nil then
             sd.maxAcceleration = saved.maxAcceleration
             sd.maxBackwardAcceleration = saved.maxBackwardAcceleration
-        else
-            if tonumber(sd.maxAcceleration or 0) <= 0 then sd.maxAcceleration = 1 end
-            if tonumber(sd.maxBackwardAcceleration or 0) <= 0 then sd.maxBackwardAcceleration = 1 end
         end
+        
+        
+        if tonumber(sd.maxAcceleration or 0) <= 0 then sd.maxAcceleration = 1 end
+        if tonumber(sd.maxBackwardAcceleration or 0) <= 0 then sd.maxBackwardAcceleration = 1 end
 
         if sd.lastInputValues ~= nil then
             sd.lastInputValues.axisForward = 0
@@ -4153,6 +4128,103 @@ function ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(vehicle)
     evmDbg("restoreVehicleAfterServiceUnlock vehicle=%s", tostring(evmGetVehicleName(rootVehicle)))
 end
 
+
+function ExtendedVehicleMaintenance.cleanupStaleServiceLocks(reason)
+    local runtime = ExtendedVehicleMaintenance.spec_serviceRuntime
+
+    for _, vehicle in ipairs(evmCollectMissionVehicles()) do
+        local root = vehicle ~= nil and (vehicle.rootVehicle or vehicle) or nil
+        if root ~= nil then
+            local spec = evmGetVehicleSpec(root)
+            local active = spec ~= nil and spec.isServiceActive == true
+            local remaining = 0
+            if active then
+                remaining = evmGetServiceRemainingMs(spec, root)
+            end
+
+            if (not active) or remaining <= 0 then
+                if spec ~= nil and remaining <= 0 then
+                    spec.isServiceActive = false
+                    spec.serviceMode = 0
+                    spec.serviceRemainingGameMs = 0
+                    spec.serviceEndAbsHours = 0
+                    spec.serviceHoursToAdd = 0
+                    spec.serviceDaysToAdd = 0
+                    spec.physicsFrozen = false
+                end
+
+                if runtime ~= nil and runtime.enterLocks ~= nil and root.rootNode ~= nil then
+                    runtime.enterLocks[root.rootNode] = nil
+                end
+
+                if ExtendedVehicleMaintenance.removeEnterLock ~= nil then
+                    pcall(ExtendedVehicleMaintenance.removeEnterLock, root)
+                end
+                if ExtendedVehicleMaintenance.removeHardVehicleLock ~= nil then
+                    pcall(ExtendedVehicleMaintenance.removeHardVehicleLock, root)
+                end
+
+                if root.spec_enterable ~= nil then
+                    root.spec_enterable.canBeEntered = true
+                end
+                root._evmHardLockActive = false
+            end
+        end
+    end
+
+    if runtime ~= nil and runtime.active == true then
+        local rv = runtime.rootVehicle ~= nil and (runtime.rootVehicle.rootVehicle or runtime.rootVehicle) or nil
+        local rs = rv ~= nil and evmGetVehicleSpec(rv) or nil
+        local rr = (rs ~= nil and rs.isServiceActive == true) and evmGetServiceRemainingMs(rs, rv) or 0
+        if rv == nil or rs == nil or rs.isServiceActive ~= true or rr <= 0 then
+            runtime.active = false
+            runtime.mode = 0
+            runtime.rootVehicle = nil
+            runtime.targets = {}
+            runtime.totalCost = 0
+            runtime.totalDurationMs = 0
+            runtime.startTime = 0
+            runtime.endTime = 0
+            runtime.pendingLockData = nil
+            runtime.pendingOldRootNode = nil
+            runtime.syntheticLockSpec = nil
+            runtime._persistLockResolved = false
+            runtime._serviceWatchers = {}
+        end
+    end
+
+    evmDbg("cleanupStaleServiceLocks reason=%s", tostring(reason or "unknown"))
+end
+
+function ExtendedVehicleMaintenance.finishExpiredServices(reason)
+    if g_server == nil then
+        return
+    end
+
+    for _, vehicle in ipairs(evmCollectMissionVehicles()) do
+        local root = vehicle ~= nil and (vehicle.rootVehicle or vehicle) or nil
+        local spec = root ~= nil and evmGetVehicleSpec(root) or nil
+        if root ~= nil and spec ~= nil and spec.isServiceActive == true then
+            local remaining = evmGetServiceRemainingMs(spec, root)
+            if remaining <= 0 then
+                evmDbg("finishExpiredServices reason=%s vehicle=%s", tostring(reason or "unknown"), tostring(evmGetVehicleName(root)))
+                ExtendedVehicleMaintenance.finishService(root)
+            end
+        elseif root ~= nil and root._evmHardLockActive == true then
+            if ExtendedVehicleMaintenance.removeHardVehicleLock ~= nil then
+                pcall(ExtendedVehicleMaintenance.removeHardVehicleLock, root)
+            end
+            if ExtendedVehicleMaintenance.removeEnterLock ~= nil then
+                pcall(ExtendedVehicleMaintenance.removeEnterLock, root)
+            end
+            if root.spec_enterable ~= nil then
+                root.spec_enterable.canBeEntered = true
+            end
+            root._evmHardLockActive = false
+        end
+    end
+end
+
 function ExtendedVehicleMaintenance.applyServiceState(vehicle, isActive, mode, durationMs, hoursAdded, daysAdded)
     if vehicle == nil then
         return
@@ -4164,11 +4236,11 @@ function ExtendedVehicleMaintenance.applyServiceState(vehicle, isActive, mode, d
         if isActive == true and evmCreateRuntimeSpec ~= nil then
             spec = evmCreateRuntimeSpec(rootVehicle)
             if spec ~= nil then
-                print(string.format("[EVM] v13 receiveServiceState: runtime spec created for service lock vehicle=%s", tostring(evmGetVehicleName(rootVehicle))))
+                evmPrint(string.format("[EVM] v13 receiveServiceState: runtime spec created for service lock vehicle=%s", tostring(evmGetVehicleName(rootVehicle))))
             end
         end
         if spec == nil then
-            print(string.format("[EVM] v13 receiveServiceState ignored: missing spec vehicle=%s active=%s", tostring(evmGetVehicleName(rootVehicle)), tostring(isActive)))
+            evmPrint(string.format("[EVM] v13 receiveServiceState ignored: missing spec vehicle=%s active=%s", tostring(evmGetVehicleName(rootVehicle)), tostring(isActive)))
             return
         end
     end
@@ -4183,9 +4255,7 @@ function ExtendedVehicleMaintenance.applyServiceState(vehicle, isActive, mode, d
     if spec.isServiceActive then
         local runtime = ExtendedVehicleMaintenance.spec_serviceRuntime
         local pendingEndAbsHours = 0
-        -- BUGFIX (zwei identische Trecker): strikt per Objekt-Identitaet pruefen,
-        -- damit bei zwei baugleichen Treckern nicht versehentlich Service-Endzeit
-        -- vom anderen Trecker uebernommen wird.
+        
         if runtime ~= nil and runtime.pendingLockData ~= nil and evmIsRuntimeServiceVehicle(rootVehicle, runtime) then
             pendingEndAbsHours = tonumber(runtime.pendingLockData.serviceEndAbsHours or 0) or 0
         end
@@ -4205,6 +4275,9 @@ function ExtendedVehicleMaintenance.applyServiceState(vehicle, isActive, mode, d
         spec.serviceEndAbsHours = 0
         if ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock ~= nil then
             ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(rootVehicle)
+        end
+        if ExtendedVehicleMaintenance.cleanupStaleServiceLocks ~= nil then
+            ExtendedVehicleMaintenance.cleanupStaleServiceLocks("applyServiceState-inactive")
         end
     end
 
@@ -4248,11 +4321,11 @@ function ExtendedVehicleMaintenance.receiveServiceStateFromServer(vehicle, isAct
         if isActive == true then
             spec = evmCreateRuntimeSpec(rootVehicle)
             if spec ~= nil then
-                print(string.format("[EVM] v13 receiveServiceState: runtime spec created for service lock vehicle=%s", tostring(evmGetVehicleName(rootVehicle))))
+                evmPrint(string.format("[EVM] v13 receiveServiceState: runtime spec created for service lock vehicle=%s", tostring(evmGetVehicleName(rootVehicle))))
             end
         end
         if spec == nil then
-            print(string.format("[EVM] v13 receiveServiceState ignored: missing spec vehicle=%s active=%s", tostring(evmGetVehicleName(rootVehicle)), tostring(isActive)))
+            evmPrint(string.format("[EVM] v13 receiveServiceState ignored: missing spec vehicle=%s active=%s", tostring(evmGetVehicleName(rootVehicle)), tostring(isActive)))
             return
         end
     end
@@ -4338,7 +4411,7 @@ end
 
 function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, totalCost, totalDurationMs)
     if rootVehicle == nil then
-        print("[EVM] tryStartService abort: rootVehicle nil")
+        evmPrint("[EVM] tryStartService abort: rootVehicle nil")
         return false
     end
 
@@ -4356,14 +4429,14 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
             if isVehicleObject(vehicle) then
                 table.insert(cleanTargets, vehicle.rootVehicle or vehicle)
             else
-                print(string.format("[EVM] tryStartService ignored invalid target at index %s type=%s value=%s", tostring(i), type(vehicle), tostring(vehicle)))
+                evmPrint(string.format("[EVM] tryStartService ignored invalid target at index %s type=%s value=%s", tostring(i), type(vehicle), tostring(vehicle)))
             end
         end
     end
 
     if #cleanTargets == 0 then
         table.insert(cleanTargets, rootVehicle)
-        print(string.format("[EVM] tryStartService fallback: inserted rootVehicle as target (%s)", evmGetVehicleLabel(rootVehicle)))
+        evmPrint(string.format("[EVM] tryStartService fallback: inserted rootVehicle as target (%s)", evmGetVehicleLabel(rootVehicle)))
     end
 
     local oldRootNode = rootVehicle.rootNode
@@ -4377,17 +4450,12 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
     runtime._nextPersistResolveTryTime = 0
 
     if serviceMode == self.SERVICE_MODE_WORKSHOP then
-        print(string.format("[EVM] tryStartService workshop mode PRE-RESET vehicle=%s", evmGetVehicleLabel(rootVehicle)))
+        evmPrint(string.format("[EVM] tryStartService workshop mode PRE-RESET vehicle=%s", evmGetVehicleLabel(rootVehicle)))
 
         ExtendedVehicleMaintenance.forceVehicleStandstill(rootVehicle)
         ExtendedVehicleMaintenance.forceLeaveVehicle(rootVehicle)
         ExtendedVehicleMaintenance.forceVehicleStandstill(rootVehicle)
 
-        -- MP-Fix: Failure-Effekte (Flat Tire, Engine, etc.) VOR dem Reset
-        -- clearen. Nach resetVehicle streamt FS25 das Fahrzeug neu an alle
-        -- Clients. Wenn failureType noch gesetzt ist, wuerde der Client
-        -- onReadStream applyFlatTire aufrufen und die Effekte explodieren
-        -- (die weissen Quadrate / Particle-Bugs im Screenshot).
         ExtendedVehicleMaintenance.clearFailure(rootVehicle)
 
         local persistValues = ExtendedVehicleMaintenance.calculateServiceValues(rootVehicle)
@@ -4403,18 +4471,18 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
 
         local okReset, resultReset = pcall(ExtendedVehicleMaintenance.resetVehicleToWorkshop, rootVehicle)
         if not okReset then
-            print(string.format("[EVM] tryStartService workshop mode reset FAILED vehicle=%s err=%s", evmGetVehicleLabel(rootVehicle), tostring(resultReset)))
+            evmPrint(string.format("[EVM] tryStartService workshop mode reset FAILED vehicle=%s err=%s", evmGetVehicleLabel(rootVehicle), tostring(resultReset)))
             return false
         end
 
-        print(string.format("[EVM] tryStartService workshop mode reset vehicle=%s ok=%s oldRootNode=%s", evmGetVehicleLabel(rootVehicle), tostring(resultReset), tostring(oldRootNode)))
+        evmPrint(string.format("[EVM] tryStartService workshop mode reset vehicle=%s ok=%s oldRootNode=%s", evmGetVehicleLabel(rootVehicle), tostring(resultReset), tostring(oldRootNode)))
 
         activeVehicle = ExtendedVehicleMaintenance.findVehicleByPersistData(runtime.pendingLockData, oldRootNode) or ExtendedVehicleMaintenance.findVehicleAfterWorkshopReset(rootVehicle, oldRootNode) or rootVehicle
     end
 
     activeVehicle = activeVehicle.rootVehicle or activeVehicle
     if activeVehicle == nil or not isVehicleObject(activeVehicle) then
-        print("[EVM] tryStartService abort: activeVehicle invalid")
+        evmPrint("[EVM] tryStartService abort: activeVehicle invalid")
         return false
     end
 
@@ -4442,7 +4510,7 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
     if cost > 0 and g_currentMission ~= nil and g_currentMission.addMoney ~= nil then
         local moneyType = MoneyType ~= nil and (MoneyType.VEHICLE_REPAIR or MoneyType.REPAIR_VEHICLE or 10) or 10
         pcall(g_currentMission.addMoney, g_currentMission, -cost, farmId, moneyType, true, true)
-        print(string.format("[EVM] deducted cost=%.0f farmId=%s", cost, tostring(farmId)))
+        evmPrint(string.format("[EVM] deducted cost=%.0f farmId=%s", cost, tostring(farmId)))
     end
 
     runtime.active = true
@@ -4487,7 +4555,7 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
         if resolvedVehicle ~= activeVehicle then
             local oldVehicle = activeVehicle
 
-            print(string.format(
+            evmPrint(string.format(
                 "[EVM] tryStartService switched active vehicle tag=%s old=%s oldRootNode=%s new=%s newRootNode=%s",
                 tostring(tag),
                 evmGetVehicleLabel(oldVehicle),
@@ -4516,7 +4584,7 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
         resolveAndSwitchActiveVehicle(tag)
 
         if activeVehicle == nil or not isVehicleObject(activeVehicle) then
-            print(string.format("[EVM] enforceRuntimeState[%s] activeVehicle invalid", tostring(tag)))
+            evmPrint(string.format("[EVM] enforceRuntimeState[%s] activeVehicle invalid", tostring(tag)))
             return
         end
 
@@ -4526,7 +4594,7 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
         ExtendedVehicleMaintenance.installHardVehicleLock(activeVehicle)
         applyStateToTargets()
 
-        print(string.format(
+        evmPrint(string.format(
             "[EVM] enforceRuntimeState[%s] active=%s rootNode=%s targets=%s mode=%s durationMs=%s",
             tostring(tag),
             evmGetVehicleLabel(activeVehicle),
@@ -4537,23 +4605,12 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
         ))
     end
 
-    -- Im Workshop-Mode: resetVehicle() erstellt das Fahrzeug-Objekt neu.
-    -- onLoad() des neuen Objekts liest evm_resetPersist.xml und setzt
-    -- isServiceActive=true. Das passiert ASYNCHRON nach tryStartService.
-    -- Den initialen enforceRuntimeState/Broadcast erst aus dem Watcher
-    -- aufrufen, damit das neue Objekt schon vollstaendig geladen ist.
-    if serviceMode ~= self.SERVICE_MODE_WORKSHOP then
-        enforceRuntimeState("initial")
-        ExtendedVehicleMaintenance.broadcastServiceState(activeVehicle, true)
-    end
+    
+    
+    
+    enforceRuntimeState(serviceMode == self.SERVICE_MODE_WORKSHOP and "workshop-initial" or "initial")
+    ExtendedVehicleMaintenance.broadcastServiceState(activeVehicle, true)
 
-    -- MP-Fix: broadcastServiceState mehrmals delayed wiederholen.
-    -- Direkt nach tryStartService kann das Vehicle bei einigen Clients noch
-    -- nicht im Network-Scope sein (insbesondere bei Workshop-Reset, aber auch
-    -- bei langsamen Verbindungen). Das wiederholte Senden stellt sicher, dass
-    -- jeder Client zuverlaessig den Service-State und damit Lock + Countdown
-    -- bekommt. Das Watcher-System wird unten fuer Workshop-Mode bereits
-    -- benutzt; hier ergaenzen wir Broadcast-Watcher fuer ALLE Modi.
     runtime._serviceWatchers = runtime._serviceWatchers or {}
 
     local function addBroadcastWatcher(delay)
@@ -4585,7 +4642,7 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
             table.insert(runtime._serviceWatchers, {
                 triggerTime = (g_time or 0) + delay,
                 callback = function()
-                    -- Nach resetVehicle neues Objekt suchen
+                    
                     local rt = ExtendedVehicleMaintenance.spec_serviceRuntime
                     if rt ~= nil and rt.pendingLockData ~= nil then
                         local found = ExtendedVehicleMaintenance.findVehicleByPersistData(rt.pendingLockData, rt.pendingOldRootNode)
@@ -4594,7 +4651,7 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
                         end
                     end
                     enforceRuntimeState(tag)
-                    -- Broadcast mit dem (ggf. neuen) Objekt
+                    
                     local v = rt ~= nil and rt.rootVehicle or nil
                     if v ~= nil then
                         local s = evmGetVehicleSpec(v)
@@ -4616,7 +4673,7 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
         addWatcher(5000, "5000ms")
     end
 
-    print(string.format(
+    evmPrint(string.format(
         "[EVM] service active set target=%s root=%s mode=%s rootNode=%s",
         evmGetVehicleLabel(activeVehicle),
         evmGetVehicleLabel(activeVehicle),
@@ -4624,7 +4681,7 @@ function ExtendedVehicleMaintenance:tryStartService(rootVehicle, targets, mode, 
         tostring(activeVehicle.rootNode)
     ))
 
-    print(string.format(
+    evmPrint(string.format(
         "[EVM] tryStartService success: mode=%s targets=%s cost=%s durationMs=%s",
         tostring(serviceMode),
         tostring(#runtime.targets),
@@ -4663,7 +4720,6 @@ function ExtendedVehicleMaintenance.finishService(vehicle)
     spec.serviceMode = 0
     spec.physicsFrozen = false
 
-    -- Geräte: Arbeitsbereich nach Wartung wieder aktivieren
     if rootVehicle.spec_motorized == nil and rootVehicle.spec_workArea ~= nil and rootVehicle.spec_workArea.workAreas ~= nil then
         for _, wa in ipairs(rootVehicle.spec_workArea.workAreas) do
             wa.isEnabled = true
@@ -4696,8 +4752,6 @@ function ExtendedVehicleMaintenance.finishService(vehicle)
                 ExtendedVehicleMaintenance.broadcastFailureState(repairVehicle)
             end
 
-            -- Wichtig: nicht nur die Methode versuchen, sondern den Wearable-Wert danach hart auf 0 setzen.
-            -- Manche Fahrzeuge/Mods haben setDamageAmount(), aktualisieren aber nach Reset/Workshop nicht sauber.
             if repairVehicle.repairVehicle ~= nil then pcall(repairVehicle.repairVehicle, repairVehicle) end
             if repairVehicle.setDamageAmount ~= nil then
                 pcall(repairVehicle.setDamageAmount, repairVehicle, 0, true)
@@ -4725,11 +4779,23 @@ function ExtendedVehicleMaintenance.finishService(vehicle)
         end
     end
 
-    -- Unlock every service/repair target, not only the root vehicle. Also restores drivable
-    -- values such as maxAcceleration/maxBackwardAcceleration that were forced to 0 during service.
     for _, unlockVehicle in ipairs(repairTargets) do
         if unlockVehicle ~= nil then
-            ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(unlockVehicle.rootVehicle or unlockVehicle)
+            local uv = unlockVehicle.rootVehicle or unlockVehicle
+            ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(uv)
+            local us = evmGetVehicleSpec(uv)
+            if us ~= nil then
+                us.isServiceActive = false
+                us.serviceMode = 0
+                us.serviceRemainingGameMs = 0
+                us.serviceEndAbsHours = 0
+                us.serviceHoursToAdd = 0
+                us.serviceDaysToAdd = 0
+                us.physicsFrozen = false
+            end
+            if ExtendedVehicleMaintenance.broadcastServiceState ~= nil then
+                ExtendedVehicleMaintenance.broadcastServiceState(uv, false)
+            end
         end
     end
     ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(rootVehicle)
@@ -4749,6 +4815,10 @@ function ExtendedVehicleMaintenance.finishService(vehicle)
         runtime.pendingOldRootNode = nil
         runtime.syntheticLockSpec = nil
         runtime._serviceWatchers = {}
+    end
+
+    if ExtendedVehicleMaintenance.cleanupStaleServiceLocks ~= nil then
+        ExtendedVehicleMaintenance.cleanupStaleServiceLocks("finishService")
     end
 
     if rootVehicle.raiseDirtyFlags ~= nil and spec.dirtyFlag ~= nil then
@@ -4780,7 +4850,7 @@ function ExtendedVehicleMaintenance:getCanBeEntered(superFunc)
 end
 
 function ExtendedVehicleMaintenance:getCanBeAttached(superFunc, attacherVehicle, attacherVehicleJointDescIndex, implement)
-    -- Gerät in Wartung: nicht ankuppelbar
+    
     if ExtendedVehicleMaintenance.isVehicleLocked(self) then
         if self.isClient and g_currentMission ~= nil and g_currentMission.showBlinkingWarning ~= nil then
             g_currentMission:showBlinkingWarning(
@@ -4815,8 +4885,7 @@ function ExtendedVehicleMaintenance:getCanBeUsed(superFunc)
 end
 
 function ExtendedVehicleMaintenance:getCanMotorRun(superFunc)
-    -- Eine Motorpanne blockiert den Motor nicht dauerhaft. Der Motor kann starten,
-    -- geht aber in zufälligen Abständen wieder aus, bis eine Wartung abgeschlossen wurde.
+    
     if ExtendedVehicleMaintenance.isVehicleLocked(self) then
         return false
     end
@@ -4847,10 +4916,7 @@ function ExtendedVehicleMaintenance:getMotorNotAllowedWarning(superFunc)
 end
 
 function ExtendedVehicleMaintenance:getCanBeRepaired(superFunc)
-    -- v17: Standard-Reparatur nur fuer motorisierte Fahrzeuge deaktivieren.
-    -- Anbaugeraete / Anhaenger / Tools duerfen weiterhin am Haendler "REPARIEREN"
-    -- benutzen, weil die EVM-Wartung dort eher nervig als sinnvoll ist
-    -- (kleine Werte, kaum Pannen, keine Motor-Stalls moeglich).
+    
     if self == nil or self.spec_motorized == nil then
         if superFunc ~= nil then
             return superFunc(self)
@@ -4861,8 +4927,7 @@ function ExtendedVehicleMaintenance:getCanBeRepaired(superFunc)
 end
 
 function ExtendedVehicleMaintenance:getRepairPrice(superFunc)
-    -- v17: Preis nur fuer motorisierte Fahrzeuge auf 0 setzen (= Button verschwindet).
-    -- Fuer alles andere den Vanilla-Preis durchreichen.
+    
     if self == nil or self.spec_motorized == nil then
         if superFunc ~= nil then
             return superFunc(self)
@@ -4872,9 +4937,6 @@ function ExtendedVehicleMaintenance:getRepairPrice(superFunc)
     return 0
 end
 
--- v21: Zusaetzliche Repair-Preis-Hooks fuer Faelle in denen FS25 nicht getRepairPrice
--- aufruft (z.B. Haendler-Menue "REPARIEREN"-Button).
--- Logik identisch zu getRepairPrice: motorisierte Fahrzeuge -> 0, alles andere -> Vanilla.
 function ExtendedVehicleMaintenance:evmHook_getRepairShopPrice(superFunc, ...)
     if self == nil or self.spec_motorized == nil then
         if superFunc ~= nil then
@@ -4895,12 +4957,6 @@ function ExtendedVehicleMaintenance:evmHook_getRepairShopBasePrice(superFunc, ..
     return 0
 end
 
--- Daily-Upkeep: NICHT den Reparieren-Button steuernd, aber falls FS25 das fuer
--- "Standard-Reparatur"-Berechnung mit benutzt, geben wir fuer Motorisierte 0 zurueck damit
--- Vanilla-Repair effektiv kostenlos waere -- und dann setzen wir getCanBeRepaired auf false
--- damit der Button trotzdem nicht klickbar ist.
--- Vorerst LASSE ICH DAILY UPKEEP UNVERAENDERT (= superFunc nutzen) damit ich nicht aus
--- Versehen in einen unbeabsichtigten Pfad eingreife.
 function ExtendedVehicleMaintenance:evmHook_getDailyUpkeep(superFunc, ...)
     if superFunc ~= nil then
         return superFunc(self, ...)
@@ -4909,8 +4965,7 @@ function ExtendedVehicleMaintenance:evmHook_getDailyUpkeep(superFunc, ...)
 end
 
 function ExtendedVehicleMaintenance:evmHook_getSellPrice(superFunc, ...)
-    -- Verkaufspreis nicht aendern -- nur durchreichen. Diese Funktion ist nur in der Hook-Liste
-    -- weil sie erwaehnt war, aber EVM aendert keine Verkaufspreise.
+    
     if superFunc ~= nil then
         return superFunc(self, ...)
     end
@@ -4918,16 +4973,12 @@ function ExtendedVehicleMaintenance:evmHook_getSellPrice(superFunc, ...)
 end
 
 function ExtendedVehicleMaintenance:repairVehicle(superFunc, ...)
-    -- v17: Vanilla-Repair-Hook. Wird bei Anbaugeraeten/Anhaengern ueber den Haendler-Button
-    -- aufgerufen. Wir lassen das Spiel zuerst seinen Standard-Reset machen und cleanen danach
-    -- die aktive EVM-Panne (Reifen, Hydraulik, Bremse), sonst bleibt der Failure-State haengen.
+    
     local result = nil
     if superFunc ~= nil then
         result = superFunc(self, ...)
     end
 
-    -- Fuer motorisierte Fahrzeuge sollte der Vanilla-Repair gar nicht aufrufbar sein
-    -- (getCanBeRepaired liefert false), aber falls doch: nichts machen, EVM-Service ist Pflicht.
     if self == nil or self.spec_motorized ~= nil then
         return result
     end
@@ -4937,7 +4988,7 @@ function ExtendedVehicleMaintenance:repairVehicle(superFunc, ...)
     if spec == nil then return result end
 
     if spec.failureType ~= nil and spec.failureType ~= "" then
-        -- Bei reinen Clients via Event clearen, sonst direkt.
+        
         if g_server ~= nil then
             ExtendedVehicleMaintenance.clearFailure(rootVehicle)
             if ExtendedVehicleMaintenance.broadcastFailureState ~= nil then
@@ -4947,7 +4998,7 @@ function ExtendedVehicleMaintenance:repairVehicle(superFunc, ...)
             EVMFailureEvent.sendEvent(rootVehicle, "", 0, true)
         end
         if ExtendedVehicleMaintenance.debug == true then
-            print(string.format("[EVM] vanilla repair: cleared EVM failure on implement vehicle=%s",
+            evmPrint(string.format("[EVM] vanilla repair: cleared EVM failure on implement vehicle=%s",
                 tostring(evmGetVehicleName(rootVehicle))))
         end
     end
@@ -5026,7 +5077,6 @@ function ExtendedVehicleMaintenance:onRegisterActionEvents(isActiveForInput, isA
 
     self:clearActionEventsTable(spec.actionEvents)
 
-    -- Motorisierte Fahrzeuge: Action-Event wenn eingestiegen
     if self.isClient and self.spec_motorized ~= nil and self.getIsEntered ~= nil and self:getIsEntered() then
         local _, actionEventId = self:addActionEvent(spec.actionEvents, InputAction.EVM_OPEN_SERVICE, self, ExtendedVehicleMaintenance.actionEventStartService, false, true, false, true)
         if actionEventId ~= nil then
@@ -5035,7 +5085,6 @@ function ExtendedVehicleMaintenance:onRegisterActionEvents(isActiveForInput, isA
             g_inputBinding:setActionEventActive(actionEventId, not ExtendedVehicleMaintenance.isVehicleInServiceOrPending(self))
         end
 
-        -- v18: Quick-Fix-Aktion (nur sichtbar wenn aktive MINOR-Panne mit Quick-Fix-Definition)
         if InputAction.EVM_QUICK_FIX ~= nil then
             local _, qfId = self:addActionEvent(spec.actionEvents, InputAction.EVM_QUICK_FIX, self, ExtendedVehicleMaintenance.actionEventQuickFix, false, true, false, true)
             if qfId ~= nil then
@@ -5045,7 +5094,6 @@ function ExtendedVehicleMaintenance:onRegisterActionEvents(isActiveForInput, isA
             end
         end
 
-        -- v18: Limp-Home-Aktion
         if InputAction.EVM_LIMP_HOME ~= nil then
             local _, lhId = self:addActionEvent(spec.actionEvents, InputAction.EVM_LIMP_HOME, self, ExtendedVehicleMaintenance.actionEventLimpHome, false, true, false, true)
             if lhId ~= nil then
@@ -5057,7 +5105,6 @@ function ExtendedVehicleMaintenance:onRegisterActionEvents(isActiveForInput, isA
     end
 end
 
--- v18: Action-Text/-Sichtbarkeit fuer Quick-Fix dynamisch je nach Fahrzeugzustand setzen.
 function ExtendedVehicleMaintenance.updateQuickFixActionText(vehicle)
     if vehicle == nil then return end
     local spec = evmGetVehicleSpec(vehicle)
@@ -5079,7 +5126,7 @@ function ExtendedVehicleMaintenance.updateQuickFixActionText(vehicle)
     end
 
     local label = (g_i18n ~= nil and g_i18n.getText ~= nil and g_i18n:getText(g_languageShort == "de" and def.label_de or def.label_en)) or def.label_de or def.label_en or "Quick fix"
-    -- Falls obige getText nicht gefunden: direkt das Feld nehmen.
+    
     if label == nil or label == "" or string.find(tostring(label), "missing", 1, true) ~= nil then
         label = (g_languageShort == "de" and def.label_de) or def.label_en or "Quick fix"
     end
@@ -5426,7 +5473,6 @@ function ExtendedVehicleMaintenance.clearTireEffect(vehicle, key)
     evmRecomputeTireEffects(state)
 end
 
-
 local function evmGetVehiclePhysicsHookState(vehicle, create)
     if vehicle == nil then return nil end
     local state = ExtendedVehicleMaintenance._vehiclePhysicsHookStates[vehicle]
@@ -5475,7 +5521,7 @@ function ExtendedVehicleMaintenance.attachVehiclePhysicsHook(vehicle, key, hookF
                             if nh ~= nil then outHandbrake = nh end
                             if nd ~= nil then outDt = nd end
                         else
-                            print("[EVM] VehiclePhysicsHook error " .. tostring(hookKey) .. ": " .. tostring(nf))
+                            evmPrint("[EVM] VehiclePhysicsHook error " .. tostring(hookKey) .. ": " .. tostring(nf))
                         end
                     end
                 end
@@ -5566,7 +5612,6 @@ local function evmStopMotorForFailure(vehicle)
         end
     end
 
-    -- Fallback fuer Mod-Fahrzeuge/MP: manche stopMotor()-Aufrufe werden vom Client-Input direkt wieder ueberfahren.
     if vehicle.spec_motorized ~= nil then
         vehicle.spec_motorized.isMotorStarted = false
         vehicle.spec_motorized.motorStartTime = 0
@@ -5642,7 +5687,7 @@ function ExtendedVehicleMaintenance.attachRpmLimiter(vehicle, spec)
         if type(motor.maxRpm) == "number" then motor.maxRpm = math.min(motor._evmRpmLimitOrigMaxRpm or motor.maxRpm, rpmLimit) end
         if type(motor.maxForwardRpm) == "number" then motor.maxForwardRpm = math.min(motor._evmRpmLimitOrigMaxForwardRpm or motor.maxForwardRpm, rpmLimit) end
         if type(motor.maxBackwardRpm) == "number" then motor.maxBackwardRpm = math.min(motor._evmRpmLimitOrigMaxBackwardRpm or motor.maxBackwardRpm, rpmLimit) end
-        -- Notlauf: nicht nur Anzeige-RPM kappen, sondern echte Fahrleistung massiv reduzieren.
+        
         if type(motor.peakMotorPower) == "number" then motor.peakMotorPower = (motor._evmRpmLimitOrigPeakMotorPower or motor.peakMotorPower) * 0.34 end
         if type(motor.maxMotorPower) == "number" then motor.maxMotorPower = (motor._evmRpmLimitOrigMaxMotorPower or motor.maxMotorPower) * 0.34 end
         if type(motor.maxForwardSpeed) == "number" then
@@ -5662,7 +5707,6 @@ function ExtendedVehicleMaintenance.attachRpmLimiter(vehicle, spec)
         local forward = axisForward
         local handbrake = doHandbrake
 
-        -- Notlauf: bei Vollgas nur noch geringe Leistung; oberhalb ca. 18 km/h wird aktiv abgeregelt.
         if forward ~= nil and forward > 0 then
             forward = math.min(forward, 0.28)
         end
@@ -5731,8 +5775,7 @@ end
 local evmSetEngineStallMotorCap
 
 function ExtendedVehicleMaintenance.attachEngineFailure(vehicle, spec)
-    -- Motorpanne blockiert den Start nicht dauerhaft. Nur direkt nach einem Aussetzer wird kurz verhindert,
-    -- dass der MP-Client den Motor im selben Moment wieder anwirft.
+    
     if vehicle ~= nil then vehicle = vehicle.rootVehicle or vehicle end
     if vehicle == nil or spec == nil or spec.failureType ~= "engine" then return false end
 
@@ -5852,13 +5895,10 @@ function ExtendedVehicleMaintenance.restoreTires(vehicle)
     end
 end
 
--- -----------------------------------------------------------------------
--- Batteriepanne: Motor startet nicht mehr. Laeuft aber weiter wenn er bereits an ist.
--- -----------------------------------------------------------------------
 function ExtendedVehicleMaintenance.attachBatteryFailure(vehicle, spec)
     if vehicle ~= nil then vehicle = vehicle.rootVehicle or vehicle end
     if vehicle == nil or spec == nil or spec.failureType ~= "battery" then return false end
-    -- KEIN Motor-Stop: Batterie leer = laeuft noch, aber kein Neustart
+    
     if type(vehicle.startMotor) == "function" and vehicle._evmOriginalStartMotorBattery == nil then
         vehicle._evmOriginalStartMotorBattery = vehicle.startMotor
         vehicle.startMotor = function(selfVehicle, ...)
@@ -5883,12 +5923,9 @@ function ExtendedVehicleMaintenance.restoreBatteryFailure(vehicle)
     end
     local spec = evmGetVehicleSpec(vehicle)
     if spec ~= nil then
-        -- MP-Fix: charge/voltage NICHT auf Defaults zurücksetzen!
-        -- Die Werte sind Server-Owned und werden via EVMBatteryStateEvent gesynced.
-        -- Das Setzen auf 1.0/12.6 hier hätte die soeben empfangenen Sync-Werte zerstört.
+        
         if spec.failureType == "battery" then
-            -- Nur falls noch eine echte Batterie-Panne läuft, sanft zurücksetzen.
-            -- (Wird gleich überschrieben durch nächsten Sync, aber lieber ein sauberer Default.)
+            
             spec.batteryCharge = math.max(tonumber(spec.batteryCharge) or 0, 0.5)
             spec.batteryVoltage = 12.6
         end
@@ -5942,7 +5979,6 @@ function ExtendedVehicleMaintenance.applyFlatTire(vehicle, severity)
     end
 end
 
--- v18: Helper - aus einer 0..1 severity die Tier-Klasse ableiten.
 function ExtendedVehicleMaintenance.getSeverityTier(severity)
     local s = tonumber(severity) or 0
     if s < (ExtendedVehicleMaintenance.SEVERITY_THRESHOLD_MINOR or 0.40) then
@@ -5953,7 +5989,6 @@ function ExtendedVehicleMaintenance.getSeverityTier(severity)
     return ExtendedVehicleMaintenance.SEVERITY_TIER_MAJOR
 end
 
--- v18: Helper - aktive Pannen-Tier eines Fahrzeugs (oder nil wenn keine Panne).
 function ExtendedVehicleMaintenance.getActiveFailureTier(vehicle)
     if vehicle ~= nil then vehicle = vehicle.rootVehicle or vehicle end
     local spec = evmGetVehicleSpec(vehicle)
@@ -5961,8 +5996,6 @@ function ExtendedVehicleMaintenance.getActiveFailureTier(vehicle)
     return ExtendedVehicleMaintenance.getSeverityTier(spec.failureSeverity or 0)
 end
 
--- v18: Helper - kann eine aktive Panne mit Quick-Fix vor Ort behoben werden?
--- Nur MINOR-Tier, nur Pannentypen die in QUICK_FIX_DEFINITIONS auftauchen, kein engine.
 function ExtendedVehicleMaintenance.canQuickFix(vehicle)
     if vehicle ~= nil then vehicle = vehicle.rootVehicle or vehicle end
     local spec = evmGetVehicleSpec(vehicle)
@@ -5977,7 +6010,6 @@ function ExtendedVehicleMaintenance.canQuickFix(vehicle)
     return def ~= nil
 end
 
--- v18: Helper - kann der Spieler "Weiterfahren mit Reduzierung" auf eine MINOR-Panne anwenden?
 function ExtendedVehicleMaintenance.canLimpHome(vehicle)
     if vehicle ~= nil then vehicle = vehicle.rootVehicle or vehicle end
     local spec = evmGetVehicleSpec(vehicle)
@@ -5990,8 +6022,6 @@ function ExtendedVehicleMaintenance.canLimpHome(vehicle)
     return true
 end
 
--- v18: Quick-Fix vor Ort. Geld vom Konto, Cooldown-Sperre setzen, Panne komplett aufheben.
--- MUSS auf dem Server laufen. Auf reinen Clients verwendet der Action-Handler EVMQuickFixEvent.
 function ExtendedVehicleMaintenance.applyQuickFix(vehicle)
     if g_server == nil then return false end
     if vehicle ~= nil then vehicle = vehicle.rootVehicle or vehicle end
@@ -6003,7 +6033,6 @@ function ExtendedVehicleMaintenance.applyQuickFix(vehicle)
     local def = ExtendedVehicleMaintenance.QUICK_FIX_DEFINITIONS[ft]
     if def == nil then return false end
 
-    -- Geld vom Eigentuemer abziehen (nur Server kann das verlaesslich).
     local cost = tonumber(def.cost) or 0
     local farmId = nil
     if vehicle.getOwnerFarmId ~= nil then
@@ -6015,22 +6044,18 @@ function ExtendedVehicleMaintenance.applyQuickFix(vehicle)
         pcall(g_currentMission.addMoney, g_currentMission, -cost, farmId, moneyType, true)
     end
 
-    -- Panne aufheben.
     ExtendedVehicleMaintenance.clearFailure(vehicle)
     if ExtendedVehicleMaintenance.broadcastFailureState ~= nil then
         ExtendedVehicleMaintenance.broadcastFailureState(vehicle)
     end
 
-    -- Cooldown-Sperre setzen (gegen Spam).
     spec.quickFixUntil = (g_time or 0) + (tonumber(def.durationMs) or 180000)
 
-    -- Kleiner Schadensanteil (Symbol fuer "geflickt, nicht repariert"). Verhindert dass
-    -- der Spieler durch Quick-Fix den Wartungs-Verschleiss komplett umgeht.
     if vehicle.setDamageAmount ~= nil and vehicle.getDamageAmount ~= nil then
         local cur = 0
         local ok, dmg = pcall(vehicle.getDamageAmount, vehicle)
         if ok and dmg ~= nil then cur = tonumber(dmg) or 0 end
-        local left = math.max(cur - 0.05, math.min(cur, 0.18)) -- Schaden minimal reduzieren auf >=18%
+        local left = math.max(cur - 0.05, math.min(cur, 0.18)) 
         pcall(vehicle.setDamageAmount, vehicle, evmClamp(left, 0, 1), true)
     end
 
@@ -6040,15 +6065,13 @@ function ExtendedVehicleMaintenance.applyQuickFix(vehicle)
     end
 
     if ExtendedVehicleMaintenance.debug == true or ExtendedVehicleMaintenance.BREAKDOWN_DEBUG == true then
-        print(string.format("[EVM] quickFix applied vehicle=%s type=%s cost=%d cooldownMs=%d",
+        evmPrint(string.format("[EVM] quickFix applied vehicle=%s type=%s cost=%d cooldownMs=%d",
             tostring(evmGetVehicleName(vehicle)), tostring(ft), cost, tonumber(def.durationMs) or 0))
     end
 
     return true
 end
 
--- v18: "Weiterfahren mit Reduzierung". Severity wird halbiert fuer LIMP_HOME_DURATION_MS.
--- Nach Ablauf greift die Panne wieder mit voller Staerke. Kein Materialpreis.
 function ExtendedVehicleMaintenance.applyLimpHome(vehicle)
     if g_server == nil then return false end
     if vehicle ~= nil then vehicle = vehicle.rootVehicle or vehicle end
@@ -6059,7 +6082,7 @@ function ExtendedVehicleMaintenance.applyLimpHome(vehicle)
     spec.limpHomeUntil = (g_time or 0) + (ExtendedVehicleMaintenance.LIMP_HOME_DURATION_MS or 1800000)
     spec.limpHomeOriginalSeverity = spec.failureSeverity or 0.3
     spec.failureSeverity = (spec.limpHomeOriginalSeverity or 0.3) * (ExtendedVehicleMaintenance.LIMP_HOME_SEVERITY_MULT or 0.5)
-    -- Subspec-Severities mitziehen, damit hydraulicLeak/brakeFault sofort schwaecher werden.
+    
     if spec.hydraulicLeakSeverity ~= nil then
         spec.hydraulicLeakSeverity = spec.hydraulicLeakSeverity * (ExtendedVehicleMaintenance.LIMP_HOME_SEVERITY_MULT or 0.5)
     end
@@ -6076,14 +6099,13 @@ function ExtendedVehicleMaintenance.applyLimpHome(vehicle)
     end
 
     if ExtendedVehicleMaintenance.debug == true then
-        print(string.format("[EVM] limpHome applied vehicle=%s untilMs=%d",
+        evmPrint(string.format("[EVM] limpHome applied vehicle=%s untilMs=%d",
             tostring(evmGetVehicleName(vehicle)), spec.limpHomeUntil))
     end
 
     return true
 end
 
--- v18: Tick-Logik fuer Limp-Home: nach Ablauf Severity zuruecksetzen.
 function ExtendedVehicleMaintenance.updateLimpHomeExpiry(vehicle, spec)
     if vehicle == nil or spec == nil or g_server == nil then return end
     if spec.limpHomeUntil == nil or spec.limpHomeUntil == 0 then return end
@@ -6093,7 +6115,7 @@ function ExtendedVehicleMaintenance.updateLimpHomeExpiry(vehicle, spec)
         spec.limpHomeOriginalSeverity = nil
         return
     end
-    -- Limp-Home laeuft aus -> Severity wieder hochziehen.
+    
     if spec.limpHomeOriginalSeverity ~= nil then
         spec.failureSeverity = spec.limpHomeOriginalSeverity
         if spec.hydraulicLeakSeverity ~= nil then
@@ -6109,10 +6131,9 @@ function ExtendedVehicleMaintenance.updateLimpHomeExpiry(vehicle, spec)
         ExtendedVehicleMaintenance.broadcastFailureState(vehicle)
     end
     if ExtendedVehicleMaintenance.debug == true then
-        print(string.format("[EVM] limpHome expired vehicle=%s severity restored", tostring(evmGetVehicleName(vehicle))))
+        evmPrint(string.format("[EVM] limpHome expired vehicle=%s severity restored", tostring(evmGetVehicleName(vehicle))))
     end
 end
-
 
 function ExtendedVehicleMaintenance.applyRandomFailure(vehicle, failureType, severity)
     if vehicle ~= nil then vehicle = vehicle.rootVehicle or vehicle end
@@ -6137,11 +6158,11 @@ function ExtendedVehicleMaintenance.applyRandomFailure(vehicle, failureType, sev
         spec.rpmLimitValue = ExtendedVehicleMaintenance.RPM_LIMIT_FAILURE_RPM
         ExtendedVehicleMaintenance.attachRpmLimiter(vehicle, spec)
     elseif spec.failureType == "hydraulicLeak" then
-        -- Hydraulikleck: Anbaugeräte können nicht mehr gehoben/gesenkt werden (Speed-Penalty)
+        
         spec.hydraulicLeakSeverity = severity
         evmDbg("hydraulicLeak applied vehicle=%s severity=%.2f", tostring(evmGetVehicleName(vehicle)), severity)
     elseif spec.failureType == "brakeFault" then
-        -- Bremsdefekt: Fahrzeug bremst schwächer / zieht zur Seite
+        
         spec.brakeFaultSeverity = severity
         evmDbg("brakeFault applied vehicle=%s severity=%.2f", tostring(evmGetVehicleName(vehicle)), severity)
     end
@@ -6149,7 +6170,7 @@ function ExtendedVehicleMaintenance.applyRandomFailure(vehicle, failureType, sev
         local damage = math.max(evmGetVehicleDamage(vehicle), 0.55 + severity * 0.35)
         pcall(vehicle.setDamageAmount, vehicle, evmClamp(damage, 0, 1), true)
     end
-    -- Keine globale Blink-Warnung mehr: der aktive Fehler wird im EVM-HUD als Kontrollleuchte angezeigt.
+    
     if vehicle.raiseDirtyFlags ~= nil and spec.dirtyFlag ~= nil then vehicle:raiseDirtyFlags(spec.dirtyFlag) end
     if g_server ~= nil and ExtendedVehicleMaintenance.broadcastFailureState ~= nil then
         ExtendedVehicleMaintenance.broadcastFailureState(vehicle)
@@ -6188,7 +6209,6 @@ function ExtendedVehicleMaintenance.updateEngineFailure(vehicle, spec, dt)
         if ok then load = evmClamp(tonumber(value or 0) or 0, 0, 1) end
     end
 
-    -- Manuell gesetzter Motorfehler: erster Aussetzer fast sofort, danach alle paar Sekunden.
     local minInterval = math.floor(evmClamp(2600 - severity * 900, 1200, 2600))
     local maxInterval = math.floor(evmClamp(6200 - severity * 1800, minInterval + 900, 6200))
     spec.engineFailureTimer = (tonumber(spec.engineFailureTimer) or 10) - delta
@@ -6206,7 +6226,6 @@ function ExtendedVehicleMaintenance.updateEngineFailure(vehicle, spec, dt)
     local moving = rawSpeed > 0.0005
     local entered = vehicle.getIsEntered ~= nil and vehicle:getIsEntered() == true
 
-    -- Nicht nur auf getIsMotorStarted verlassen: Im MP kann dieser Status kurz falsch sein.
     if isStarted or moving or entered then
         local chance = evmClamp(0.88 + severity * 0.10 + load * 0.06, 0.88, 1.0)
         if math.random() < chance then
@@ -6215,7 +6234,7 @@ function ExtendedVehicleMaintenance.updateEngineFailure(vehicle, spec, dt)
             evmStopMotorForFailure(vehicle)
             evmSetEngineStallMotorCap(vehicle, true)
             ExtendedVehicleMaintenance.attachEngineStallPhysics(vehicle, spec)
-            print(string.format("[EVM] engine failure HARD STALL vehicle=%s side=%s durationMs=%d", tostring(evmGetVehicleName(vehicle)), tostring((vehicle.isServer and "server") or "client"), math.floor((spec.engineFailurePhaseEnd or now) - now)))
+            evmPrint(string.format("[EVM] engine failure HARD STALL vehicle=%s side=%s durationMs=%d", tostring(evmGetVehicleName(vehicle)), tostring((vehicle.isServer and "server") or "client"), math.floor((spec.engineFailurePhaseEnd or now) - now)))
         end
     end
 end
@@ -6223,7 +6242,7 @@ end
 function ExtendedVehicleMaintenance.updateRpmLimiterFailure(vehicle, spec, dt)
     if vehicle == nil or spec == nil or spec.failureType ~= "rpmLimit" then return end
     ExtendedVehicleMaintenance.attachRpmLimiter(vehicle.rootVehicle or vehicle, spec)
-    -- Keine Blink-Warnung mehr: Notlauf wird im EVM-HUD angezeigt.
+    
 end
 
 function ExtendedVehicleMaintenance.attachBrakeFault(vehicle, spec)
@@ -6242,7 +6261,7 @@ function ExtendedVehicleMaintenance.attachBrakeFault(vehicle, spec)
         local rawSpeed = math.abs(tonumber(selfVeh.lastSpeedReal or selfVeh.lastSpeed or 0) or 0)
         local speedKph = rawSpeed < 1 and rawSpeed * 3600 or (rawSpeed < 50 and rawSpeed * 3.6 or rawSpeed)
         if newForward ~= nil and newForward < -0.05 then
-            -- Bremsdefekt: Brems-/Rueckwaertsinput wird deutlich schwaecher.
+            
             newForward = newForward * evmClamp(0.48 - severity * 0.28, 0.12, 0.48)
         end
         if speedKph > 8 then
@@ -6265,7 +6284,7 @@ function ExtendedVehicleMaintenance.attachHydraulicLeak(vehicle, spec)
     return ExtendedVehicleMaintenance.attachVehiclePhysicsHook(vehicle, "evmFailureHydraulicLeak", function(selfVeh, axisForward, axisSide, doHandbrake, dt)
         local newForward = axisForward
         if newForward ~= nil and newForward > 0 then
-            -- Hydraulikleck/Leistungsabfall: Maschine faehrt noch, aber deutlich zaeher.
+            
             newForward = math.min(newForward, evmClamp(0.82 - severity * 0.32, 0.35, 0.82))
         end
         return newForward, axisSide, doHandbrake, dt
@@ -6290,8 +6309,7 @@ function ExtendedVehicleMaintenance.applyFailureEffects(vehicle, spec, dt, isSer
     elseif spec.failureType == "brakeFault" then
         ExtendedVehicleMaintenance.attachBrakeFault(root, spec)
     elseif spec.failureType == "engine" then
-        -- Auch auf Clients ausfuehren, damit der Fahrer im MP die Aussetzer sofort merkt.
-        -- Der Server fuehrt dieselbe Logik autoritativ aus.
+        
         ExtendedVehicleMaintenance.updateEngineFailure(root, spec, dt)
     elseif spec.failureType == "battery" then
         ExtendedVehicleMaintenance.attachBatteryFailure(root, spec)
@@ -6306,7 +6324,6 @@ function ExtendedVehicleMaintenance.receiveFailureStateFromServer(vehicle, failu
     end
     if vehicle == nil or spec == nil then return end
 
-    -- Erst lokale alte Hooks/Effekte entfernen, dann den bestaetigten Server-State setzen.
     ExtendedVehicleMaintenance.restoreTires(vehicle)
     ExtendedVehicleMaintenance.restoreEngineFailure(vehicle)
     ExtendedVehicleMaintenance.restoreRpmLimiter(vehicle)
@@ -6344,10 +6361,7 @@ function ExtendedVehicleMaintenance.receiveFailureStateFromServer(vehicle, failu
 end
 
 function ExtendedVehicleMaintenance.receiveBatteryStateFromServer(vehicle, charge, voltage, failureType, failureSeverity)
-    -- MP-Fix v9:
-    -- Event kann auf dem Client auf einem Child-/Komponentenfahrzeug ankommen,
-    -- waehrend das HUD spaeter die Spec vom rootVehicle nutzt. Darum schreiben wir
-    -- den Batterie-State bewusst auf beide Specs.
+    
     local eventVehicle = vehicle
     local rootVehicle = vehicle ~= nil and (vehicle.rootVehicle or vehicle) or nil
     if rootVehicle == nil then return end
@@ -6370,9 +6384,8 @@ function ExtendedVehicleMaintenance.receiveBatteryStateFromServer(vehicle, charg
         spec._batteryClientSyncTime = g_time or 0
         spec._batteryClientSynced = true
 
-        -- DIAGNOSTIC: log spec identity
         if (g_time or 0) % 4000 < 100 then
-            print(string.format("[EVM] applyTo target=%s rootSame=%s specPtr=%s wroteCharge=%.4f",
+            evmPrint(string.format("[EVM] applyTo target=%s rootSame=%s specPtr=%s wroteCharge=%.4f",
                 tostring(evmGetVehicleName(target)),
                 tostring(target == (target.rootVehicle or target)),
                 tostring(spec):sub(8, 18),
@@ -6403,13 +6416,13 @@ function ExtendedVehicleMaintenance.receiveBatteryStateFromServer(vehicle, charg
     end
 
     if g_client ~= nil then
-        -- v14: Client-Debug pro Fahrzeug statt global.
+        
         local dbgSpec = evmGetVehicleSpec(rootVehicle)
         if dbgSpec ~= nil then
             dbgSpec._batteryClientDebugTimer = dbgSpec._batteryClientDebugTimer or 0
             if (g_time or 0) - dbgSpec._batteryClientDebugTimer > 1500 then
                 dbgSpec._batteryClientDebugTimer = g_time or 0
-                print(string.format("[EVM] BATTERY clientSync vehicle=%s eventVehicle=%s charge=%.4f volt=%.2f failure=%s",
+                evmPrint(string.format("[EVM] BATTERY clientSync vehicle=%s eventVehicle=%s charge=%.4f volt=%.2f failure=%s",
                     tostring(evmGetVehicleName(rootVehicle)), tostring(evmGetVehicleName(eventVehicle)), tonumber(c or 0), tonumber(v or 0), tostring(ft)))
             end
         end
@@ -6447,12 +6460,10 @@ function ExtendedVehicleMaintenance.updateBreakdownRisk(vehicle, spec, dt, sourc
         return
     end
 
-    -- Nur motorisierte Fahrzeuge bekommen Motor-Pannen; Geräte/Anhänger haben eigene Checks
     local cat = ExtendedVehicleMaintenance.getVehicleCategory(vehicle)
     local isMotorized = vehicle.spec_motorized ~= nil
     local isImplement = (cat.name == "implement" or cat.name == "tool" or cat.name == "trailer")
 
-    -- Motorisierte: nur wenn Motor läuft
     if isMotorized and not isImplement then
         if vehicle.getIsMotorStarted ~= nil and not vehicle:getIsMotorStarted() then return end
     end
@@ -6466,7 +6477,7 @@ function ExtendedVehicleMaintenance.updateBreakdownRisk(vehicle, spec, dt, sourc
     local vehicleNext = tonumber(spec.nextNaturalBreakdownAllowedTime or 0) or 0
     if now < globalNext or now < vehicleNext then
         if ExtendedVehicleMaintenance.BREAKDOWN_DEBUG == true or ExtendedVehicleMaintenance.debug == true then
-            print(string.format("[EVM] breakdown skipped source=%s vehicle=%s cooldown globalLeft=%.1fmin vehicleLeft=%.1fmin",
+            evmPrint(string.format("[EVM] breakdown skipped source=%s vehicle=%s cooldown globalLeft=%.1fmin vehicleLeft=%.1fmin",
                 tostring(source or "tick"),
                 tostring(evmGetVehicleName(vehicle)),
                 math.max(0, globalNext - now) / 60000,
@@ -6478,29 +6489,21 @@ function ExtendedVehicleMaintenance.updateBreakdownRisk(vehicle, spec, dt, sourc
     local damage = evmGetVehicleDamage(vehicle)
     local isDue, remainingHours, remainingDays = ExtendedVehicleMaintenance.isDue(vehicle)
 
-    -- Basiswahrscheinlichkeit mit Kategorie-Multiplikator
     local catMult = tonumber(cat.breakdownMult or 1.0) or 1.0
     local chance = (ExtendedVehicleMaintenance.BREAKDOWN_BASE_CHANCE or 0.00025) * catMult
 
-    -- v16: Wear-Faktor. Frische Fahrzeuge sollen praktisch keine zufälligen Pannen
-    -- bekommen; je näher das Fahrzeug an "Wartung fällig" rückt, desto höher die Chance.
-    -- wearFactor liegt zwischen 0.05 (gerade frisch gewartet) und ~1.0 (kurz vor fällig).
-    -- Wir nehmen den niedrigeren der zwei Pools (Stunden vs. Tage) als Treiber, damit
-    -- ein Anhänger der seit 200 Spieltagen nichts gemacht hat ähnlich behandelt wird wie
-    -- ein Traktor mit vielen Betriebsstunden.
     local hoursPool = (cat.hoursInterval or 100)
     local daysPool  = (cat.daysInterval  or 60)
     local hoursUsedFrac = 1.0 - math.min(1.0, math.max(0.0, (remainingHours or 0) / math.max(1, hoursPool)))
     local daysUsedFrac  = 1.0 - math.min(1.0, math.max(0.0, (remainingDays  or 0) / math.max(1, daysPool)))
     local wearFactor = math.max(hoursUsedFrac, daysUsedFrac)
-    -- Floor & Easing: unter 30% Verschleiß effektiv kein Pannen-Bonus, danach quadratisch
-    -- ansteigend bis zur Fälligkeit. Das fühlt sich realistischer an als ein konstanter Wert.
+    
     local wearScaled = 0
     if wearFactor > 0.30 then
-        local norm = (wearFactor - 0.30) / 0.70  -- 0..1 zwischen 30% und 100% Verbrauch
+        local norm = (wearFactor - 0.30) / 0.70  
         wearScaled = norm * norm
     end
-    chance = chance * (0.20 + 0.80 * wearScaled) -- 20%..100% der base chance je nach Verschleiß
+    chance = chance * (0.20 + 0.80 * wearScaled) 
 
     if damage > (ExtendedVehicleMaintenance.BREAKDOWN_MIN_DAMAGE or 0.45) then
         chance = chance + (damage - ExtendedVehicleMaintenance.BREAKDOWN_MIN_DAMAGE) * 0.07 * catMult
@@ -6514,7 +6517,7 @@ function ExtendedVehicleMaintenance.updateBreakdownRisk(vehicle, spec, dt, sourc
     chance = evmClamp(chance, 0, ExtendedVehicleMaintenance.BREAKDOWN_MAX_CHANCE or 0.18)
 
     if ExtendedVehicleMaintenance.BREAKDOWN_DEBUG == true or ExtendedVehicleMaintenance.debug == true then
-        print(string.format("[EVM] breakdown check source=%s vehicle=%s cat=%s motor=%s damage=%.3f wear=%.2f due=%s chance=%.5f",
+        evmPrint(string.format("[EVM] breakdown check source=%s vehicle=%s cat=%s motor=%s damage=%.3f wear=%.2f due=%s chance=%.5f",
             tostring(source or "tick"),
             tostring(evmGetVehicleName(vehicle)),
             tostring(cat.name),
@@ -6527,13 +6530,12 @@ function ExtendedVehicleMaintenance.updateBreakdownRisk(vehicle, spec, dt, sourc
 
     if math.random() > chance then return end
 
-    -- Pannen-Typ je nach Fahrzeugkategorie
     local severity = evmClamp(damage + (isDue and 0.35 or 0.15), 0.2, 1)
     local roll = math.random()
     local failure
 
     if isImplement or cat.name == "trailer" then
-        -- Anhänger/Geräte: kein Motorausfall, aber hydraulik/bremsen/licht
+        
         if roll < 0.5 then
             failure = "flatTire"
         elseif roll < 0.8 then
@@ -6541,7 +6543,7 @@ function ExtendedVehicleMaintenance.updateBreakdownRisk(vehicle, spec, dt, sourc
         else
             failure = "brakeFault"
         end
-        -- Geräte haben keinen Motor → nur flatTire wenn kein Motor
+        
         if not isMotorized then
             if roll < 0.6 then
                 failure = "flatTire"
@@ -6552,7 +6554,7 @@ function ExtendedVehicleMaintenance.updateBreakdownRisk(vehicle, spec, dt, sourc
             end
         end
     elseif cat.name == "harvester" then
-        -- Mähdrescher: mehr Pannen-Vielfalt
+        
         if roll < 0.25 then
             failure = "engine"
         elseif roll < 0.45 then
@@ -6565,7 +6567,7 @@ function ExtendedVehicleMaintenance.updateBreakdownRisk(vehicle, spec, dt, sourc
             failure = "brakeFault"
         end
     else
-        -- Traktor: klassische Pannen
+        
         if roll < 0.33 then
             failure = "engine"
         elseif roll < 0.56 then
@@ -6581,7 +6583,6 @@ function ExtendedVehicleMaintenance.updateBreakdownRisk(vehicle, spec, dt, sourc
 
     ExtendedVehicleMaintenance.applyRandomFailure(vehicle, failure, severity)
 
-    -- Nach einer natuerlichen Panne nicht direkt das naechste Fahrzeug erwischen.
     local now2 = g_time or 0
     ExtendedVehicleMaintenance._nextNaturalBreakdownAllowedTime = now2 + (ExtendedVehicleMaintenance.BREAKDOWN_MIN_GLOBAL_COOLDOWN or 720000)
     spec.nextNaturalBreakdownAllowedTime = now2 + (ExtendedVehicleMaintenance.BREAKDOWN_MIN_VEHICLE_COOLDOWN or 2700000)
@@ -6782,9 +6783,6 @@ function ExtendedVehicleMaintenance.consoleCommandStatus(...)
     )
 end
 
--- v21: Diagnose welche Repair-Funktionen ein Fahrzeug hat und was sie zurueckgeben.
--- Nuetzlich um zu verstehen warum der Haendler-"REPARIEREN"-Button bei motorisierten Fahrzeugen
--- trotz EVM-Hook noch sichtbar ist.
 function ExtendedVehicleMaintenance.consoleCommandRepairDiag(...)
     local vehicle = evmFindConsoleFailureVehicle()
     if vehicle == nil then
@@ -6871,7 +6869,7 @@ function ExtendedVehicleMaintenance.consoleCommandDiag(...)
     table.insert(lines, string.format("vehicles in mission: %d | with EVM spec: %d", vehicleCount, vehicleWithSpec))
 
     local result = table.concat(lines, " | ")
-    print("[EVM Diag] " .. result)
+    evmPrint("[EVM Diag] " .. result)
     return result
 end
 
@@ -6884,7 +6882,7 @@ function ExtendedVehicleMaintenance:consoleCommandCollisionTest(value)
     vehicle = evmNormalizeVehicle(vehicle)
     if vehicle == nil then
         local msg = "[EVM] CollisionTest: kein aktuelles/nahes Fahrzeug gefunden"
-        print(msg)
+        evmPrint(msg)
         return msg
     end
 
@@ -6903,7 +6901,7 @@ function ExtendedVehicleMaintenance:consoleCommandCollisionTest(value)
         local okSet, errSet = pcall(vehicle.setDamageAmount, vehicle, newDamage, true)
         applied = okSet == true
         if not okSet then
-            print(string.format("[EVM] CollisionTest setDamageAmount failed vehicle=%s err=%s", tostring(evmGetVehicleName(vehicle)), tostring(errSet)))
+            evmPrint(string.format("[EVM] CollisionTest setDamageAmount failed vehicle=%s err=%s", tostring(evmGetVehicleName(vehicle)), tostring(errSet)))
         end
     end
 
@@ -6917,15 +6915,14 @@ function ExtendedVehicleMaintenance:consoleCommandCollisionTest(value)
             vehicle:raiseDirtyFlags(spec.dirtyFlag)
         end
         local msg = string.format("[EVM] CollisionTest applied vehicle=%s %.2f%% -> %.2f%%", tostring(evmGetVehicleName(vehicle)), oldDamage * 100, newDamage * 100)
-        print(msg)
+        evmPrint(msg)
         return msg
     end
 
     local msg = string.format("[EVM] CollisionTest failed vehicle=%s reason=no damage setter/spec_wearable", tostring(evmGetVehicleName(vehicle)))
-    print(msg)
+    evmPrint(msg)
     return msg
 end
-
 
 function ExtendedVehicleMaintenance.consoleCommandClearService(...)
     local adminErr = evmAdminGuard("evmClearService")
@@ -6974,8 +6971,9 @@ function ExtendedVehicleMaintenance.consoleCommandClearAllService(...)
     for _, vehicle in ipairs(evmCollectMissionVehicles()) do
         local root = vehicle.rootVehicle or vehicle
         local spec = evmGetVehicleSpec(root)
-        if spec ~= nil and spec.isServiceActive == true then
-            count = count + 1
+        local hadService = false
+        if spec ~= nil then
+            hadService = spec.isServiceActive == true or root._evmHardLockActive == true
             spec.isServiceActive = false
             spec.serviceRemainingGameMs = 0
             spec.serviceEndAbsHours = 0
@@ -6983,10 +6981,13 @@ function ExtendedVehicleMaintenance.consoleCommandClearAllService(...)
             spec.serviceDaysToAdd = 0
             spec.serviceMode = 0
             spec.physicsFrozen = false
-            ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(root)
-            if g_server ~= nil then
-                ExtendedVehicleMaintenance.broadcastServiceState(root, false)
-            end
+        else
+            hadService = root._evmHardLockActive == true
+        end
+        ExtendedVehicleMaintenance.restoreVehicleAfterServiceUnlock(root)
+        if hadService then count = count + 1 end
+        if g_server ~= nil then
+            ExtendedVehicleMaintenance.broadcastServiceState(root, false)
         end
     end
 
@@ -7005,9 +7006,6 @@ function ExtendedVehicleMaintenance.consoleCommandClearAllService(...)
     return "EVM: Service geloescht fuer " .. tostring(count) .. " Fahrzeuge"
 end
 
--- v19: Flotten-Reset. Heilt False-Damage durch v15-v18 Kollisions-Bugs in einem Rutsch.
--- Setzt fuer ALLE Fahrzeuge: Schaden auf 0, Wartungspool voll, Pannen geloescht.
--- Admin-only. Nicht im Spielzustand "Service aktiv" -- erst evmClearAllService nutzen.
 function ExtendedVehicleMaintenance.consoleCommandFleetReset(...)
     local adminErr = evmAdminGuard("evmFleetReset")
     if adminErr ~= nil then return adminErr end
@@ -7024,7 +7022,6 @@ function ExtendedVehicleMaintenance.consoleCommandFleetReset(...)
         if spec ~= nil then
             total = total + 1
 
-            -- Aktive Pannen aufheben
             if spec.failureType ~= nil and spec.failureType ~= "" then
                 ExtendedVehicleMaintenance.clearFailure(root)
                 if ExtendedVehicleMaintenance.broadcastFailureState ~= nil then
@@ -7033,7 +7030,6 @@ function ExtendedVehicleMaintenance.consoleCommandFleetReset(...)
                 failuresCleared = failuresCleared + 1
             end
 
-            -- Schaden auf 0 setzen (heilt v15-v18 Phantom-Damage)
             if root.setDamageAmount ~= nil then
                 local cur = 0
                 local ok, dmg = pcall(root.getDamageAmount, root)
@@ -7044,7 +7040,6 @@ function ExtendedVehicleMaintenance.consoleCommandFleetReset(...)
                 end
             end
 
-            -- Wartungspool voll
             spec.hoursPool = ExtendedVehicleMaintenance.MAX_HOURS
             spec.daysPool = ExtendedVehicleMaintenance.MAX_DAYS
             spec.lastServiceOperatingTimeMs = evmGetOperatingTimeMs(root)
@@ -7066,7 +7061,7 @@ function ExtendedVehicleMaintenance.consoleCommandHudScale(...)
     local hud = ExtendedVehicleMaintenance.clampHudConfig()
     local value = tonumber(args[1])
     if value == nil then
-        print(string.format("[EVM] HUD scale=%.2f | Usage: evmHudScale 0.55-1.50", tonumber(hud.scale or 0.88)))
+        evmPrint(string.format("[EVM] HUD scale=%.2f | Usage: evmHudScale 0.55-1.50", tonumber(hud.scale or 0.88)))
         return
     end
     hud.scale = math.max(0.55, math.min(1.50, value))
@@ -7079,7 +7074,7 @@ function ExtendedVehicleMaintenance.consoleCommandHudPos(...)
     local x = tonumber(args[1])
     local y = tonumber(args[2])
     if x == nil or y == nil then
-        print(string.format("[EVM] HUD posX=%.3f posY=%.3f | Usage: evmHudPos 0.993 0.512", tonumber(hud.posX or 0.993), tonumber(hud.posY or 0.512)))
+        evmPrint(string.format("[EVM] HUD posX=%.3f posY=%.3f | Usage: evmHudPos 0.993 0.512", tonumber(hud.posX or 0.993), tonumber(hud.posY or 0.512)))
         return
     end
     hud.posX = math.max(0.05, math.min(0.995, x))
@@ -7106,7 +7101,7 @@ function ExtendedVehicleMaintenance.consoleCommandHudNudge(...)
 
     local dx, dy = tonumber(args[1]), tonumber(args[2])
     if dx ~= nil and dy ~= nil then
-        -- direkte Variante: evmHudNudge 0.01 -0.02
+        
     elseif a == "left" or a == "links" or a == "l" then
         dx, dy = -step, 0
     elseif a == "right" or a == "rechts" or a == "r" then
@@ -7116,14 +7111,14 @@ function ExtendedVehicleMaintenance.consoleCommandHudNudge(...)
     elseif a == "down" or a == "runter" or a == "unten" or a == "d" then
         dx, dy = 0, -step
     else
-        print("[EVM] Usage: evmHudNudge left/right/up/down [0.005]  oder  evmHudNudge dx dy")
+        evmPrint("[EVM] Usage: evmHudNudge left/right/up/down [0.005]  oder  evmHudNudge dx dy")
         return
     end
 
     hud.posX = math.max(0.05, math.min(0.995, (tonumber(hud.posX) or 0.993) + dx))
     hud.posY = math.max(0.05, math.min(0.950, (tonumber(hud.posY) or 0.512) + dy))
     ExtendedVehicleMaintenance.saveHudConfig()
-    print(string.format("[EVM] HUD verschoben: posX=%.3f posY=%.3f", hud.posX, hud.posY))
+    evmPrint(string.format("[EVM] HUD verschoben: posX=%.3f posY=%.3f", hud.posX, hud.posY))
 end
 
 function ExtendedVehicleMaintenance.consoleCommandHudReset(...)
@@ -7196,7 +7191,6 @@ end
 
 evmRegisterConsoleCommands()
 
-
 function ExtendedVehicleMaintenance:onLoad(savegame)
     ExtendedVehicleMaintenance.registerGlobalSavegameXMLPaths()
 
@@ -7226,17 +7220,21 @@ function ExtendedVehicleMaintenance:onLoad(savegame)
     spec.enterHintUntil = 0
     spec.wasEntered = false
     spec.failureWarnUntil = 0
-    -- MP-Fix: NICHT zurücksetzen wenn die Spec bereits einen Wert vom Server-Sync hat.
-    -- onLoad kann durch injectRuntimeSpecsForLoadedVehicles mehrfach aufgerufen werden,
-    -- und in dem Fall darf der per EVMBatteryStateEvent empfangene State nicht überschrieben werden.
+    
     if spec._batteryClientSynced ~= true then
         spec.batteryCharge = 1.0
         spec.batteryVoltage = 12.7
     end
     spec.batteryVoltageTimer = 0
+    evmEnsureVehicleInstanceId(self, spec)
 
     if savegame ~= nil and savegame.xmlFile ~= nil then
         local key = savegame.key .. ".extendedVehicleMaintenance"
+        local savedInstanceId = savegame.xmlFile:getValue(key .. "#evmInstanceId", nil)
+        if savedInstanceId ~= nil and tostring(savedInstanceId) ~= "" then
+            spec.evmInstanceId = tostring(savedInstanceId)
+        end
+        evmEnsureVehicleInstanceId(self, spec)
         spec.hoursPool = savegame.xmlFile:getValue(key .. "#hoursPool", spec.hoursPool) or spec.hoursPool
         spec.daysPool = savegame.xmlFile:getValue(key .. "#daysPool", spec.daysPool) or spec.daysPool
         spec.lastServiceOperatingTimeMs = savegame.xmlFile:getValue(key .. "#lastServiceOperatingTimeMs", spec.lastServiceOperatingTimeMs) or spec.lastServiceOperatingTimeMs
@@ -7255,16 +7253,14 @@ function ExtendedVehicleMaintenance:onLoad(savegame)
         spec.failureWheelIndex = savegame.xmlFile:getValue(key .. "#failureWheelIndex", spec.failureWheelIndex) or spec.failureWheelIndex
         spec.failureDriftDirection = savegame.xmlFile:getValue(key .. "#failureDriftDirection", spec.failureDriftDirection) or spec.failureDriftDirection
         spec.batteryCharge = savegame.xmlFile:getValue(key .. "#batteryCharge", spec.batteryCharge) or spec.batteryCharge
-        -- MP-Fix HUD: batteryVoltage aus dem Savegame kann veraltet sein (z.B. 11.6V obwohl Batterie voll).
-        -- Wir laden den gespeicherten Wert nur als Fallback; der korrekte Wert wird nach dem ersten
-        -- Batterie-Tick via getBatteryVoltage() berechnet und per EVMBatteryStateEvent an Clients gesendet.
+        
         local savedVoltage = savegame.xmlFile:getValue(key .. "#batteryVoltage", nil)
         if savedVoltage ~= nil then
-            -- Nur übernehmen wenn plausibel zur gespeicherten Ladung (Differenz > 0.5V = veraltet)
+            
             local chargeDerivedV = 11.4 + evmClamp(tonumber(spec.batteryCharge) or 1.0, 0, 1) * 1.3
             local sv = tonumber(savedVoltage) or chargeDerivedV
             if math.abs(sv - chargeDerivedV) > 0.5 then
-                spec.batteryVoltage = chargeDerivedV  -- veralteter Wert, neu ableiten
+                spec.batteryVoltage = chargeDerivedV  
             else
                 spec.batteryVoltage = sv
             end
@@ -7274,7 +7270,7 @@ function ExtendedVehicleMaintenance:onLoad(savegame)
 
         evmMigrateMaintenanceIntervalToOperatingHours(spec, self, "savegame")
     else
-        -- Kein alter EVM-Save vorhanden: direkt am nativen LS-Betriebsstunden-Takt ausrichten.
+        
         spec.lastServiceOperatingTimeMs = evmGetOperatingCycleStartMs(evmGetOperatingTimeMs(self))
     end
 
@@ -7302,11 +7298,6 @@ function ExtendedVehicleMaintenance:onLoad(savegame)
         end
         runtime.pendingOldRootNode = runtime.pendingOldRootNode or self.rootNode
 
-        -- MP-Fix: Persist erst loeschen NACHDEM wir den State gesichert haben.
-        -- Die Watcher aus tryStartService suchen das neue Objekt per
-        -- findVehicleByPersistData - wenn die Datei schon weg ist greifen sie
-        -- nicht mehr. Wir loeschen erst spaeter (nach enforceLockedVehicle).
-        -- evmClearPersist wird weiter unten aufgerufen.
     end
 
     spec.hoursPool = evmClamp(spec.hoursPool or ExtendedVehicleMaintenance.DEFAULT_HOURS, 0, ExtendedVehicleMaintenance.MAX_HOURS)
@@ -7337,7 +7328,7 @@ function ExtendedVehicleMaintenance:onLoad(savegame)
 
     if spec.isServiceActive then
         ExtendedVehicleMaintenance.enforceLockedVehicle(self)
-        -- Runtime auch ohne resetPersist wiederherstellen (normaler Savegame-Reload)
+        
         local runtime = ExtendedVehicleMaintenance.getRuntime()
         if not (runtime.active == true) then
             runtime.active = true
@@ -7361,14 +7352,9 @@ function ExtendedVehicleMaintenance:onLoad(savegame)
             self:raiseDirtyFlags(spec.dirtyFlag)
         end
 
-        -- MP-Fix: Nach Workshop-Reset laedt das neue Fahrzeug-Objekt hier
-        -- neu und liest die Persist-Datei. Jetzt sofort an alle Clients
-        -- broadcasten damit sie den Lock bekommen. Danach erst Persist-Datei
-        -- loeschen - die Watcher aus tryStartService brauchen sie noch um
-        -- das neue Objekt per findVehicleByPersistData zu finden.
         if g_server ~= nil then
             ExtendedVehicleMaintenance.broadcastServiceState(self, true)
-            -- Verzoegert loeschen damit Watcher noch matchen koennen
+            
             local selfRef = self
             local rt = ExtendedVehicleMaintenance.getRuntime()
             table.insert(rt._serviceWatchers, {
@@ -7380,7 +7366,7 @@ function ExtendedVehicleMaintenance:onLoad(savegame)
         end
     else
         ExtendedVehicleMaintenance.removeHardVehicleLock(self)
-        -- Kein Service aktiv: Persist-Datei sofort loeschen falls vorhanden
+        
         ExtendedVehicleMaintenance.evmClearPersist(self)
     end
 end
@@ -7391,6 +7377,7 @@ function ExtendedVehicleMaintenance:saveToXMLFile(xmlFile, key, usedModNames)
         return
     end
 
+    xmlFile:setValue(key .. ".extendedVehicleMaintenance#evmInstanceId", evmEnsureVehicleInstanceId(self, spec))
     xmlFile:setValue(key .. ".extendedVehicleMaintenance#hoursPool", spec.hoursPool)
     xmlFile:setValue(key .. ".extendedVehicleMaintenance#daysPool", spec.daysPool)
     xmlFile:setValue(key .. ".extendedVehicleMaintenance#lastServiceOperatingTimeMs", spec.lastServiceOperatingTimeMs)
@@ -7417,10 +7404,7 @@ end
 function ExtendedVehicleMaintenance:onReadStream(streamId, connection)
     local spec = evmGetVehicleSpec(self)
     if spec == nil then
-        -- MP-Fix: Wenn die Spec auf dem Joiner-Client noch nicht initialisiert
-        -- wurde (Race-Condition zwischen Vehicle-Load und Stream-Read), erzeugen
-        -- wir sie hier bei Bedarf. Sonst wuerde der gesamte Service-State
-        -- verloren gehen und der Client wuerde das Fahrzeug nicht sperren.
+        
         if evmCreateRuntimeSpec ~= nil then
             spec = evmCreateRuntimeSpec(self)
         end
@@ -7452,26 +7436,32 @@ function ExtendedVehicleMaintenance:onReadStream(streamId, connection)
     end
 
     if spec.isServiceActive then
+        local rootVehicle = self.rootVehicle or self
         local runtime = ExtendedVehicleMaintenance.getRuntime()
-        runtime.active = true
-        runtime.mode = spec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP
-        runtime.rootVehicle = self.rootVehicle or self
-        runtime.targets = { runtime.rootVehicle }
-        runtime.pendingLockData = nil
-        runtime._persistLockResolved = true
+        local alreadyManaged = runtime.active == true
+            and runtime.rootVehicle ~= nil
+            and (runtime.rootVehicle == rootVehicle or (runtime.rootVehicle.rootVehicle or runtime.rootVehicle) == rootVehicle)
+        if not alreadyManaged then
+            runtime.active = true
+            runtime.mode = spec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP
+            runtime.rootVehicle = rootVehicle
+            runtime.targets = { rootVehicle }
+            runtime.pendingLockData = nil
+            runtime._persistLockResolved = true
+        end
         ExtendedVehicleMaintenance.forceVehicleStandstill(self)
         if evmIsPlayerInThisVehicle ~= nil and evmIsPlayerInThisVehicle(self) then
             ExtendedVehicleMaintenance.forceLeaveVehicle(self)
         end
         ExtendedVehicleMaintenance.installEnterLock(self, spec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP)
         ExtendedVehicleMaintenance.installHardVehicleLock(self)
-        -- Multiplayer-Client beim Join: Input-Locks installieren
         ExtendedVehicleMaintenance.installGlobalInputLocks()
         if self.raiseDirtyFlags ~= nil and spec.dirtyFlag ~= nil then
             pcall(self.raiseDirtyFlags, self, spec.dirtyFlag)
         end
     else
         ExtendedVehicleMaintenance.removeHardVehicleLock(self)
+        ExtendedVehicleMaintenance.removeEnterLock(self)
     end
 end
 
@@ -7526,23 +7516,29 @@ function ExtendedVehicleMaintenance:onReadUpdateStream(streamId, timestamp, conn
         end
 
         if spec.isServiceActive then
+            local rootVehicle = self.rootVehicle or self
             local runtime = ExtendedVehicleMaintenance.getRuntime()
-            runtime.active = true
-            runtime.mode = spec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP
-            runtime.rootVehicle = self.rootVehicle or self
-            runtime.targets = { runtime.rootVehicle }
-            runtime._persistLockResolved = true
+            local alreadyManaged = runtime.active == true
+                and runtime.rootVehicle ~= nil
+                and (runtime.rootVehicle == rootVehicle or (runtime.rootVehicle.rootVehicle or runtime.rootVehicle) == rootVehicle)
+            if not alreadyManaged then
+                runtime.active = true
+                runtime.mode = spec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP
+                runtime.rootVehicle = rootVehicle
+                runtime.targets = { rootVehicle }
+                runtime._persistLockResolved = true
+            end
             if (self.rootVehicle or self)._evmHardLockActive ~= true then
                 ExtendedVehicleMaintenance.installEnterLock(self, spec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP)
                 ExtendedVehicleMaintenance.installHardVehicleLock(self)
             end
-            -- Multiplayer-Client: Runtime-Locks auch auf Client installieren
             ExtendedVehicleMaintenance.installGlobalInputLocks()
             if self.raiseDirtyFlags ~= nil and spec.dirtyFlag ~= nil then
                 pcall(self.raiseDirtyFlags, self, spec.dirtyFlag)
             end
         else
             ExtendedVehicleMaintenance.removeHardVehicleLock(self)
+            ExtendedVehicleMaintenance.removeEnterLock(self)
         end
     end
 end
@@ -7573,7 +7569,6 @@ function ExtendedVehicleMaintenance:onWriteUpdateStream(streamId, connection, di
     end
 end
 
-
 local function evmGetBrakeInputState(vehicle)
     if vehicle == nil or vehicle.spec_drivable == nil then
         return false, 0, 0, false
@@ -7600,12 +7595,6 @@ local function evmGetBrakeInputState(vehicle)
     return braking, brake, axisForward, handbrake
 end
 
--- ---------------------------------------------------------------------------
--- Kollisionsschaden - SP/MP-sicherer Runtime-Prozessor
--- Läuft nicht nur über die Fahrzeug-Spezialisierung, sondern zusätzlich über
--- den globalen ModEventListener:update(). Dadurch sieht man im SP sofort Logs,
--- selbst wenn onUpdateTick bei einem Fahrzeugtyp nicht korrekt feuert.
--- ---------------------------------------------------------------------------
 function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
     if vehicle == nil then return end
 
@@ -7621,14 +7610,8 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
         isControlled = evmNormalizeVehicle(mission.controlledVehicle or mission.currentVehicle) == root
     end
 
-    -- v20: HARD GATE. Nur das lokal kontrollierte Fahrzeug wird ueberhaupt analysiert.
-    -- Frueher wurde processCollisionDamage in onUpdateTick fuer JEDES Fahrzeug aufgerufen,
-    -- inklusive der Fahrzeuge anderer Spieler auf unserem Client. Deren Velocity-Werte
-    -- kommen aber per Net-Sync interpoliert rein, mit haeufigen Mini-Spikes -> False-Damage.
-    -- Detection ist von Natur aus eine "Ich-erlebe-meinen-Crash"-Sache.
     if not isControlled then
-        -- Ohne Logging zurueck. Wenn doDebug und ueberraschend hohe Speeds, kommt der
-        -- globalUpdate-Pfad fuer's lokale Fahrzeug eh durch.
+        
         return
     end
 
@@ -7639,7 +7622,7 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
             ExtendedVehicleMaintenance._collisionNoSpecTimer = (ExtendedVehicleMaintenance._collisionNoSpecTimer or 0) - (dt or 0)
             if ExtendedVehicleMaintenance._collisionNoSpecTimer <= 0 then
                 ExtendedVehicleMaintenance._collisionNoSpecTimer = 1000
-                print(string.format("[EVM] CollisionDebug source=%s controlled=%s aber spec_extendedVehicleMaintenance fehlt -> RuntimeSpec wird nachgeladen/Typ-Patch pruefen", tostring(source), tostring(evmGetVehicleName(root))))
+                evmPrint(string.format("[EVM] CollisionDebug source=%s controlled=%s aber spec_extendedVehicleMaintenance fehlt -> RuntimeSpec wird nachgeladen/Typ-Patch pruefen", tostring(source), tostring(evmGetVehicleName(root))))
             end
         end
         return
@@ -7651,14 +7634,11 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
     if spec.evmCollisionLastProcessKey == now then return end
     spec.evmCollisionLastProcessKey = now
 
-    -- v19: Init-Grace nach Spawn / erstem Tick. Vor Ablauf der 2.5s wird kein
-    -- Crash erkannt - schuetzt vor Position-Spikes durch MP-Sync, Resume aus
-    -- Pause, Fahrzeugwechsel, Trailer-Anhaengen etc.
     if spec.evmCollisionInitDeadline == nil then
         spec.evmCollisionInitDeadline = now + (ExtendedVehicleMaintenance.COLLISION_INIT_GRACE_MS or 2500)
     end
     if now < spec.evmCollisionInitDeadline then
-        -- Position-Werte trotzdem mitschreiben damit nach Ende der Grace eine Baseline da ist
+        
         local x, y, z = getWorldTranslation(root.rootNode)
         if x ~= nil then
             spec.evmCollisionLastX, spec.evmCollisionLastY, spec.evmCollisionLastZ = x, y, z
@@ -7673,8 +7653,6 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
     local dtMs = tonumber(dt or 0) or 0
     local dtSec = math.max(dtMs / 1000, 0.001)
 
-    -- v19: Wenn der Frame-dt zu gross ist (Frame-Hang, Lade-Spike, Pause-Resume),
-    -- ignorieren wir den kompletten Tick und resetten die Speed-Baseline.
     if dtMs > (ExtendedVehicleMaintenance.COLLISION_MAX_FRAME_DT_MS or 250) then
         local x, y, z = getWorldTranslation(root.rootNode)
         if x ~= nil then
@@ -7685,7 +7663,7 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
         spec.evmImpactPeakSpeed = 0
         spec.evmImpactPeakTime = now
         if doDebug and isControlled then
-            print(string.format("[EVM] CollisionDebug source=%s vehicle=%s ignored frameHang dt=%.0fms", tostring(source), tostring(evmGetVehicleName(root)), dtMs))
+            evmPrint(string.format("[EVM] CollisionDebug source=%s vehicle=%s ignored frameHang dt=%.0fms", tostring(source), tostring(evmGetVehicleName(root)), dtMs))
         end
         return
     end
@@ -7700,8 +7678,6 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
         end
     end
 
-    -- v19: physSpeed nur aus horizontalen Komponenten (X,Z). Y rauslassen, sonst
-    -- werden Spruenge / Bodenkontakte nach Hoppern als "Crash" erkannt.
     local physSpeedKmh = -1
     local physOk = false
     if getPhysicsVelocity ~= nil then
@@ -7713,9 +7689,6 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
         end
     end
 
-    -- v20: Position-Speed nicht mehr fuer Detection genutzt - posSpeed ist im MP/Net-Sync
-    -- die haeufigste Quelle fuer Phantom-Drops (Position-Reset = Pseudo-Sprung). Wir lesen
-    -- die Position nur noch um Teleports zu erkennen und danach den Speed-Buffer zu resetten.
     local x, y, z = getWorldTranslation(root.rootNode)
     if x ~= nil then
         local lastX, lastZ = spec.evmCollisionLastX, spec.evmCollisionLastZ
@@ -7724,32 +7697,28 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
             local dz = z - lastZ
             local distHoriz = math.sqrt(dx * dx + dz * dz)
             local posSpeedHoriz = (distHoriz / dtSec) * 3.6
-            -- Teleport-Detection (z.B. MP-Resync, Trailer-Anhaengen): Detection-Buffer resetten.
+            
             if posSpeedHoriz > (ExtendedVehicleMaintenance.COLLISION_TELEPORT_SPEED_KMH or 120) then
                 if doDebug and isControlled then
-                    print(string.format("[EVM] CollisionDebug source=%s vehicle=%s ignored teleport posSpeedHoriz=%.0f km/h", tostring(source), tostring(evmGetVehicleName(root)), posSpeedHoriz))
+                    evmPrint(string.format("[EVM] CollisionDebug source=%s vehicle=%s ignored teleport posSpeedHoriz=%.0f km/h", tostring(source), tostring(evmGetVehicleName(root)), posSpeedHoriz))
                 end
                 spec.evmCollisionLastX, spec.evmCollisionLastY, spec.evmCollisionLastZ = x, y, z
                 spec.evmImpactLastTime = now
                 spec.evmImpactLastSpeed = lastSpeedKmh
                 spec.evmImpactPeakSpeed = 0
                 spec.evmImpactPeakTime = now
-                spec.evmCollisionInitDeadline = now + 1500 -- kurze zusaetzliche Grace
+                spec.evmCollisionInitDeadline = now + 1500 
                 return
             end
         end
         spec.evmCollisionLastX, spec.evmCollisionLastY, spec.evmCollisionLastZ = x, y, z
     end
 
-    -- v20: WICHTIG - sampleSpeed kommt PRIMAER vom Spiel (getLastSpeed). Das ist der
-    -- einzige Wert, dem wir wirklich vertrauen. Bei einem echten Crash faellt dieser Wert
-    -- sicher mit ab. Bei Phantom-Hoppern (Bordstein, Schiene, Bruecke) bleibt er stabil.
-    -- physSpeed wird NUR zur Bestaetigung genommen, nicht als alleiniger Trigger.
     local sampleSpeedKmh = lastSpeedOk and lastSpeedKmh or (physOk and physSpeedKmh or 0)
 
     if sampleSpeedKmh > 180 then
         if doDebug and isControlled then
-            print(string.format("[EVM] CollisionDebug source=%s vehicle=%s ignored unrealistic speed %.1f km/h", tostring(source), tostring(evmGetVehicleName(root)), sampleSpeedKmh))
+            evmPrint(string.format("[EVM] CollisionDebug source=%s vehicle=%s ignored unrealistic speed %.1f km/h", tostring(source), tostring(evmGetVehicleName(root)), sampleSpeedKmh))
         end
         spec.evmImpactPeakSpeed = 0
         spec.evmImpactPeakTime = now
@@ -7779,7 +7748,7 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
             local logEvery = ExtendedVehicleMaintenance.COLLISION_POST_IMPACT_LOG_MS or 450
             if spec.evmCollisionLastPostImpactLog == nil or (now - spec.evmCollisionLastPostImpactLog) >= logEvery then
                 spec.evmCollisionLastPostImpactLog = now
-                print(string.format("[EVM] Collision ignored vehicle=%s reason=postImpactGrace current=%.1f brake=%.2f axis=%.2f", tostring(evmGetVehicleName(root)), sampleSpeedKmh, brakeInput, axisForward))
+                evmPrint(string.format("[EVM] Collision ignored vehicle=%s reason=postImpactGrace current=%.1f brake=%.2f axis=%.2f", tostring(evmGetVehicleName(root)), sampleSpeedKmh, brakeInput, axisForward))
             end
         end
         return
@@ -7808,8 +7777,6 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
     local relativeDropLimit = ExtendedVehicleMaintenance.COLLISION_MIN_RELATIVE_DROP or 0.50
     local dynamicMinDrop = math.max(3.0, math.min(12.0, peakSpeedKmh * 0.32))
 
-    -- v19: Frame-Decel deutlich strenger. Vorher 55 (nonBrake) / 115 (brake), jetzt 75 / 130.
-    -- Das filtert die typischen "Wende auf Acker"-Drops raus die kein echter Crash sind.
     local nonBrakeDecelLimit = ExtendedVehicleMaintenance.COLLISION_MIN_FRAME_DECEL or 75.0
     local brakeDecelLimit = nonBrakeDecelLimit + 55.0
     local decelLimit = (isBraking or brakingRecently) and brakeDecelLimit or nonBrakeDecelLimit
@@ -7819,23 +7786,17 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
         and relativeDrop >= relativeDropLimit
         and frameDecel >= decelLimit
 
-    -- v19: blockedForward braucht jetzt klar erhoehten frameDecel-Threshold.
     local blockedForward = peakSpeedKmh >= minImpactSpeed
         and axisForward > 0.30
         and speedDrop >= dynamicMinDrop
         and sampleSpeedKmh <= math.max(2.5, peakSpeedKmh * 0.40)
         and frameDecel >= 60.0
 
-    -- v19: hardWall erhoeht peakSpeed-Mindest auf 25 km/h, decel auf 65.
     local hardWall = peakSpeedKmh >= 25.0
         and speedDrop >= math.max(10.0, peakSpeedKmh * 0.35)
         and relativeDrop >= 0.40
         and frameDecel >= 65.0
 
-    -- v19: lowSpeedBump war der haeufigste False-Positive-Trigger (Wenden auf weichem Boden).
-    -- Wir ziehen den peakSpeed-Mindestwert auf >=10 km/h, decel auf 75 hoch und verlangen,
-    -- dass der Spieler aktiv Gas gibt (axisForward > 0.30) damit das eindeutig ein "in
-    -- Bewegung gegen Hindernis"-Fall ist statt blosses Stehenbleiben.
     local lowSpeedBump = peakSpeedKmh >= 10.0
         and peakSpeedKmh < 18.0
         and axisForward > 0.30
@@ -7849,38 +7810,26 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
     if brakeSuppression and (isBraking or brakingRecently) and validImpact and not (blockedForward or hardWall) then
         validImpact = false
         if doDebug and isControlled and peakSpeedKmh >= minSpeed and speedDrop >= dynamicMinDrop then
-            print(string.format(
+            evmPrint(string.format(
                 "[EVM] Collision ignored vehicle=%s reason=playerBraking impact=%.1f current=%.1f drop=%.1f relDrop=%.2f frameDrop=%.1f decel=%.1f brake=%.2f axis=%.2f handbrake=%s recent=%s",
                 tostring(evmGetVehicleName(root)), peakSpeedKmh, sampleSpeedKmh, speedDrop, relativeDrop, frameDrop, frameDecel, brakeInput, axisForward, tostring(handbrake), tostring(brakingRecently)
             ))
         end
     end
 
-    -- v20: PHYSICS-BESTAETIGUNG.
-    -- Bei einem ECHTEN Crash wird die Bewegung physikalisch gebremst. physSpeed muss
-    -- den lastSpeed-Drop also in derselben Groessenordnung bestaetigen. Wenn lastSpeed
-    -- abrupt faellt aber physSpeed weiter hoch ist (oder umgekehrt), ist das ein Sync-
-    -- Glitch oder Frame-Renderspike, kein Crash.
     if validImpact and physOk then
         local physVsLastDelta = math.abs(physSpeedKmh - sampleSpeedKmh)
-        -- physSpeed darf max 12 km/h ueber lastSpeed liegen. Daruber: Phantom-Drop.
+        
         if physSpeedKmh > sampleSpeedKmh + 12.0 then
             validImpact = false
             if doDebug and isControlled then
-                print(string.format(
+                evmPrint(string.format(
                     "[EVM] Collision ignored vehicle=%s reason=physMismatch lastSpeed=%.1f physSpeed=%.1f delta=%.1f (Spiel zeigt Drop, Physik nicht -> wahrscheinlich Render-/Sync-Glitch)",
                     tostring(evmGetVehicleName(root)), sampleSpeedKmh, physSpeedKmh, physVsLastDelta))
             end
         end
     end
 
-    -- v20: MULTI-FRAME-KONSISTENZ.
-    -- Ein echter Crash ist nicht in einem einzigen Frame "voll abgeschlossen". Auch beim
-    -- Aufprall gegen eine Wand vergehen mind. 2-3 Frames bis das Fahrzeug steht. Ein
-    -- Phantom-Drop dagegen ist genau EIN Frame: lastSpeed = 18, dann 4, dann wieder 17.
-    -- Wir verlangen daher dass der gemessene Speed in mind. 2 aufeinanderfolgenden
-    -- Detection-Ticks unter peakSpeed*0.65 lag.
-    -- (Ausnahme: hardWall-Pattern bei sehr hoher Geschwindigkeit - da ist 1 Frame OK)
     if validImpact and not hardWall then
         spec.evmConsistentDropFrames = spec.evmConsistentDropFrames or 0
         local thisFrameDropped = sampleSpeedKmh < (peakSpeedKmh * 0.65) and peakSpeedKmh >= minImpactSpeed
@@ -7893,28 +7842,24 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
         if spec.evmConsistentDropFrames < 2 then
             validImpact = false
             if doDebug and isControlled then
-                print(string.format(
+                evmPrint(string.format(
                     "[EVM] Collision pending vehicle=%s reason=needConfirmFrame frames=%d sample=%.1f peak=%.1f (warte auf zweiten bestaetigten Drop-Frame)",
                     tostring(evmGetVehicleName(root)), spec.evmConsistentDropFrames, sampleSpeedKmh, peakSpeedKmh))
             end
         end
     else
-        -- Reset wenn kein Drop mehr vorliegt
+        
         if not validImpact then
             spec.evmConsistentDropFrames = 0
         end
     end
 
-    -- v20: MP-Modus zusaetzlich strenger.
-    -- Im MP gibt es Position-Net-Sync-Korrekturen die einzelne Frames verzerren.
-    -- Wenn wir im MP-Modus laufen UND es kein hardWall-Crash ist (= eindeutige Hochgeschwindigkeit),
-    -- verlangen wir 3 statt 2 bestaetigte Drop-Frames.
     if validImpact and not hardWall and g_currentMission ~= nil and g_currentMission.missionDynamicInfo ~= nil
         and g_currentMission.missionDynamicInfo.isMultiplayer == true then
         if (spec.evmConsistentDropFrames or 0) < 3 then
             validImpact = false
             if doDebug and isControlled then
-                print(string.format(
+                evmPrint(string.format(
                     "[EVM] Collision pending vehicle=%s reason=mpExtraConfirm frames=%d (MP braucht 3 bestaetigte Frames)",
                     tostring(evmGetVehicleName(root)), spec.evmConsistentDropFrames or 0))
             end
@@ -7926,7 +7871,7 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
         if spec.evmCollisionDebugTimer <= 0 then
             spec.evmCollisionDebugTimer = 1000
             if isControlled or speedDrop >= dynamicMinDrop or sampleSpeedKmh > 1 then
-                print(string.format(
+                evmPrint(string.format(
                     "[EVM] CollisionDebug source=%s vehicle=%s controlled=%s server=%s last=%.1f phys=%s sample=%.1f peak=%.1f drop=%.1f frameDrop=%.1f decel=%.1f minDrop=%.1f cooldown=%s braking=%s recentBrake=%s brake=%.2f axis=%.2f impact=%s confirmFrames=%d damage=%.1f%%",
                     tostring(source), tostring(evmGetVehicleName(root)), tostring(isControlled), tostring(root.isServer), lastSpeedKmh, physOk and string.format("%.1f", physSpeedKmh) or "n/a", sampleSpeedKmh, peakSpeedKmh, speedDrop, frameDrop, frameDecel, dynamicMinDrop, tostring(isCoolingDown), tostring(isBraking), tostring(brakingRecently), brakeInput, axisForward, tostring(validImpact), tonumber(spec.evmConsistentDropFrames or 0), evmGetVehicleDamage(root) * 100
                 ))
@@ -7935,7 +7880,7 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
     end
 
     if peakSpeedKmh >= minSpeed and speedDrop >= dynamicMinDrop and not validImpact and not isCoolingDown and doDebug and isControlled and not (isBraking or brakingRecently) then
-        print(string.format(
+        evmPrint(string.format(
             "[EVM] Collision ignored vehicle=%s reason=noImpactSignature impact=%.1f current=%.1f drop=%.1f relDrop=%.2f frameDrop=%.1f decel=%.1f needDecel=%.1f axis=%.2f",
             tostring(evmGetVehicleName(root)), peakSpeedKmh, sampleSpeedKmh, speedDrop, relativeDrop, frameDrop, frameDecel, decelLimit, axisForward
         ))
@@ -7953,18 +7898,14 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
         spec.evmImpactPeakTime = now
 
         if doDebug then
-            print(string.format(
+            evmPrint(string.format(
                 "[EVM] COLLISION detected source=%s vehicle=%s impact=%.1f current=%.1f drop=%.1f relDrop=%.2f frameDrop=%.1f decel=%.1f addDamage=%.2f%% flags impulse=%s blocked=%s hardWall=%s low=%s isServer=%s isClient=%s",
                 tostring(source), tostring(evmGetVehicleName(root)), impactSpeed, sampleSpeedKmh, speedDrop, relativeDrop, frameDrop, frameDecel, collisionDamage * 100, tostring(suddenImpulse), tostring(blockedForward), tostring(hardWall), tostring(lowSpeedBump), tostring(root.isServer), tostring(root.isClient)
             ))
         end
 
         if collisionDamage > 0.0005 then
-            -- v16: MP-Fix. Im Multiplayer ist root.isServer auf dem Client false,
-            -- d.h. der frühere "and root.isServer"-Pfad hat im MP NIE Schaden gesetzt.
-            -- Wir trennen nun sauber:
-            --   * Server (SP/Host): Schaden direkt anwenden.
-            --   * Reiner Client: Event an Server schicken; Server appliziert + broadcastet.
+            
             if root.isServer then
                 local currentDamage = evmGetVehicleDamage(root)
                 local newDamage = evmClamp(currentDamage + collisionDamage, 0, 1)
@@ -7974,7 +7915,7 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
                     local okSet, errSet = pcall(root.setDamageAmount, root, newDamage, true)
                     applied = okSet == true
                     if not okSet and doDebug then
-                        print(string.format("[EVM] COLLISION setDamageAmount failed vehicle=%s err=%s", tostring(evmGetVehicleName(root)), tostring(errSet)))
+                        evmPrint(string.format("[EVM] COLLISION setDamageAmount failed vehicle=%s err=%s", tostring(evmGetVehicleName(root)), tostring(errSet)))
                     end
                 end
 
@@ -7994,18 +7935,18 @@ function ExtendedVehicleMaintenance.processCollisionDamage(vehicle, dt, source)
                     evmDbg("COLLISION damage NOT applied vehicle=%s reason=no damage setter/spec_wearable", tostring(evmGetVehicleName(root)))
                 end
             else
-                -- Reiner Client: Schaden an Server schicken.
+                
                 if EVMCollisionDamageEvent ~= nil and EVMCollisionDamageEvent.sendEvent ~= nil then
                     local sent = EVMCollisionDamageEvent.sendEvent(root, collisionDamage) == true
                     if doDebug then
                         evmDbg("COLLISION damage sent to server vehicle=%s add=%.2f%% sent=%s", tostring(evmGetVehicleName(root)), collisionDamage * 100, tostring(sent))
                     end
                 elseif doDebug then
-                    print(string.format("[EVM] COLLISION client cannot send damage event vehicle=%s (event class missing)", tostring(evmGetVehicleName(root))))
+                    evmPrint(string.format("[EVM] COLLISION client cannot send damage event vehicle=%s (event class missing)", tostring(evmGetVehicleName(root))))
                 end
             end
         elseif doDebug then
-            print(string.format("[EVM] COLLISION damage skipped vehicle=%s reason=smallDamage damage=%.4f server=%s", tostring(evmGetVehicleName(root)), collisionDamage, tostring(root.isServer)))
+            evmPrint(string.format("[EVM] COLLISION damage skipped vehicle=%s reason=smallDamage damage=%.4f server=%s", tostring(evmGetVehicleName(root)), collisionDamage, tostring(root.isServer)))
         end
     end
 
@@ -8030,10 +7971,18 @@ function ExtendedVehicleMaintenance:onUpdate(dt)
                 if watcher.callback ~= nil then
                     local ok, err = pcall(watcher.callback)
                     if not ok then
-                        print(string.format("[EVM] service watcher failed: %s", tostring(err)))
+                        evmPrint(string.format("[EVM] service watcher failed: %s", tostring(err)))
                     end
                 end
             end
+        end
+    end
+
+    ExtendedVehicleMaintenance._expiredServiceSweepTimer = (ExtendedVehicleMaintenance._expiredServiceSweepTimer or 0) - (dt or 0)
+    if ExtendedVehicleMaintenance._expiredServiceSweepTimer <= 0 then
+        ExtendedVehicleMaintenance._expiredServiceSweepTimer = 1000
+        if ExtendedVehicleMaintenance.finishExpiredServices ~= nil then
+            ExtendedVehicleMaintenance.finishExpiredServices("onUpdateSweep")
         end
     end
 
@@ -8059,12 +8008,16 @@ function ExtendedVehicleMaintenance:onUpdate(dt)
 
     local activeSpec, activeVehicle = evmGetActiveServiceSpec(self)
     if activeSpec ~= nil and activeVehicle ~= nil then
-        ExtendedVehicleMaintenance.installGlobalInputLocks()
-        if (activeVehicle.rootVehicle or activeVehicle)._evmHardLockActive ~= true then
-            ExtendedVehicleMaintenance.installEnterLock(activeVehicle, activeSpec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP)
-            ExtendedVehicleMaintenance.installHardVehicleLock(activeVehicle)
+        local rootSelf = self.rootVehicle or self
+        local rootActive = activeVehicle.rootVehicle or activeVehicle
+        if rootSelf == rootActive then
+            ExtendedVehicleMaintenance.installGlobalInputLocks()
+            if rootActive._evmHardLockActive ~= true then
+                ExtendedVehicleMaintenance.installEnterLock(activeVehicle, activeSpec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP)
+                ExtendedVehicleMaintenance.installHardVehicleLock(activeVehicle)
+            end
+            evmClearControlledVehicleIfLocked(activeVehicle)
         end
-        evmClearControlledVehicleIfLocked(activeVehicle)
     end
 end
 
@@ -8075,7 +8028,6 @@ function ExtendedVehicleMaintenance:onUpdateTick(dt, isActiveForInput, isActiveF
         return
     end
 
-    -- Kollisionsschaden wird zentral verarbeitet.
     ExtendedVehicleMaintenance.processCollisionDamage(self, dt, "onUpdateTick")
 
     local currentGameTimeMs = ExtendedVehicleMaintenance.getCurrentGameTimeMs()
@@ -8084,12 +8036,16 @@ function ExtendedVehicleMaintenance:onUpdateTick(dt, isActiveForInput, isActiveF
 
     local activeSpec, activeVehicle = evmGetActiveServiceSpec(self)
     if activeSpec ~= nil and activeVehicle ~= nil then
-        ExtendedVehicleMaintenance.installGlobalInputLocks()
-        if (activeVehicle.rootVehicle or activeVehicle)._evmHardLockActive ~= true then
-            ExtendedVehicleMaintenance.installEnterLock(activeVehicle, activeSpec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP)
-            ExtendedVehicleMaintenance.installHardVehicleLock(activeVehicle)
+        local rootSelf = self.rootVehicle or self
+        local rootActive = activeVehicle.rootVehicle or activeVehicle
+        if rootSelf == rootActive then
+            ExtendedVehicleMaintenance.installGlobalInputLocks()
+            if rootActive._evmHardLockActive ~= true then
+                ExtendedVehicleMaintenance.installEnterLock(activeVehicle, activeSpec.serviceMode or ExtendedVehicleMaintenance.SERVICE_MODE_WORKSHOP)
+                ExtendedVehicleMaintenance.installHardVehicleLock(activeVehicle)
+            end
+            evmClearControlledVehicleIfLocked(activeVehicle)
         end
-        evmClearControlledVehicleIfLocked(activeVehicle)
 
         spec.debugTimer = (spec.debugTimer or 0) - dt
         if spec.debugTimer <= 0 then
@@ -8168,15 +8124,14 @@ function ExtendedVehicleMaintenance:onUpdateTick(dt, isActiveForInput, isActiveF
 
     if self._evmHardLockActive then
         ExtendedVehicleMaintenance.removeHardVehicleLock(self)
+        ExtendedVehicleMaintenance.removeEnterLock(self)
     end
 
     if self.spec_motorized ~= nil and self.getIsEntered ~= nil then
         local enteredNow = self:getIsEntered() == true
         if enteredNow and not spec.wasEntered then
             spec.enterHintUntil = (g_currentMission ~= nil and g_currentMission.time or 0) + ExtendedVehicleMaintenance.ENTER_HINT_DURATION_MS
-            -- Keine Einstieg-Blink-Warnung mehr: Service steht dauerhaft im EVM-HUD.
-            -- v19: Beim Einsteigen Kollisions-Init-Grace neu starten. Verhindert dass der
-            -- Position-Spike beim Switch des kontrollierten Fahrzeugs als Crash erkannt wird.
+            
             local now = (g_time or 0)
             spec.evmCollisionInitDeadline = now + (ExtendedVehicleMaintenance.COLLISION_INIT_GRACE_MS or 2500)
             spec.evmCollisionLastX, spec.evmCollisionLastY, spec.evmCollisionLastZ = nil, nil, nil
@@ -8187,8 +8142,6 @@ function ExtendedVehicleMaintenance:onUpdateTick(dt, isActiveForInput, isActiveF
         end
         spec.wasEntered = enteredNow
 
-        -- v18: Quick-Fix / Limp-Home Action-Texte alle ~750ms aktualisieren wenn der Spieler im Fahrzeug sitzt.
-        -- Damit der Button erscheint sobald eine MINOR-Panne auftritt, ohne dass der Spieler aussteigen muss.
         if enteredNow and self.isClient then
             spec.evmActionRefreshTimer = (spec.evmActionRefreshTimer or 0) - (dt or 0)
             if spec.evmActionRefreshTimer <= 0 then
@@ -8203,24 +8156,16 @@ function ExtendedVehicleMaintenance:onUpdateTick(dt, isActiveForInput, isActiveF
         end
     end
 
-    -- Client: visuelle Panning-Effekte (Warnungen, Reifeneffekte) – nur wenn Server die Panne bestätigt hat
-    -- (spec.failureType wird via onReadStream/onReadUpdateStream vom Server gesetzt → kein Desync)
     if self.isClient and not self.isServer and spec.failureType ~= nil and spec.failureType ~= "" then
         ExtendedVehicleMaintenance.updateActiveFailure(self, spec, dt, false)
     end
 
-
-    -- Batterie-Simulation läuft global in ExtendedVehicleMaintenance:update().
-    -- Grund: geparkte Fahrzeuge bekommen nicht zuverlässig onUpdateTick, besonders wenn Motor aus.
-
     if self.isServer then
-        -- Server: Panning-Logik UND visuelle Updates (Singleplayer / Server-Spieler)
+        
         if spec.failureType ~= nil and spec.failureType ~= "" then
             ExtendedVehicleMaintenance.updateActiveFailure(self, spec, dt, true)
         end
-        -- Zufalls-Pannen werden zentral im globalen Server-Update geprüft.
-        -- Grund: Im MP/Dedi feuert onUpdateTick nicht für jedes geladene Fahrzeug zuverlässig.
-
+        
         local isDue = ExtendedVehicleMaintenance.isDue(self)
         if isDue then
             if self.setDamageAmount ~= nil and self.spec_motorized ~= nil and self.getIsMotorStarted ~= nil and self:getIsMotorStarted() then
@@ -8286,22 +8231,14 @@ end
 function ExtendedVehicleMaintenance:draw()
     ExtendedVehicleMaintenance.drawNearbyServiceCountdownHelp()
 
-    -- Wie bei RealisticWorkSpeed: HUD global zeichnen, nicht nur ueber Vehicle:onDraw.
     local root = evmGetCurrentLocalVehicle()
     if root ~= nil and evmGetVehicleSpec(root) ~= nil and ExtendedVehicleMaintenance.hudConfig ~= nil and ExtendedVehicleMaintenance.hudConfig.enabled then
         ExtendedVehicleMaintenance.drawVehicleHUD(root, nil)
     end
 end
 
--- -----------------------------------------------------------------------
--- HUD-System
--- -----------------------------------------------------------------------
 local EVM_HUD = {}
 
--- Kontrollleuchten-Definitionen
--- type: failureType das diese Leuchte auslöst (oder "serviceDue", "serviceSoon", "serviceActive")
--- r,g,b: Farbe wenn aktiv
--- symbol: Unicode-Symbol
 EVM_HUD.lamps = {
     { type="engine",        r=1,    g=0.15, b=0.1,  symbol="⚙",  labelKey="hud_lamp_engine",     labelFb="Motor" },
     { type="flatTire",      r=1,    g=0.5,  b=0,    symbol="●",  labelKey="hud_lamp_tire",       labelFb="Reifen" },
@@ -8331,8 +8268,6 @@ function ExtendedVehicleMaintenance.drawColoredDriverInfo(vehicle, spec, message
     return true
 end
 
--- Gibt die simulierte Batteriespannung in Volt zurueck.
--- Berechnet Lichtmaschine, elektrische Last (Lichter/Blinker) und Rauschen realistisch.
 evmGetElectricalLoad = function(vehicle, engineOn)
     if vehicle == nil then return 0 end
     vehicle = vehicle.rootVehicle or vehicle
@@ -8351,9 +8286,7 @@ evmGetElectricalLoad = function(vehicle, engineOn)
 
     local lights = vehicle.spec_lights
     if lights ~= nil then
-        -- Serverseitig real synchronisierte Felder (Basisspiel pflegt diese auf Dedi):
-        -- lightsTypesMask (gewünschter Modus), turnLightState, beaconLightsActive.
-        -- Die "active*" und "current*" Felder sind nur clientseitige Render-States.
+        
         addMask(lights.lightsTypesMask)
         addMask(lights.activeLightTypesMask)
         addMask(lights.activeLightsTypesMask)
@@ -8404,7 +8337,7 @@ evmGetElectricalLoad = function(vehicle, engineOn)
         end
 
         if activeLights then
-            -- Realistische LED/Halogen-Mischung: Grundlast 4A für Standlicht/Armaturenbrett.
+            
             load = load + 4.0
             local groups = 1
             if mask > 0 then
@@ -8421,16 +8354,15 @@ evmGetElectricalLoad = function(vehicle, engineOn)
                 end
                 groups = math.max(1, groups)
             end
-            -- Pro aktiver Lichtgruppe ~0.8A (LED) bis max. 8A insgesamt.
-            -- Vorher: 1.5A pro Gruppe, max 18A — viel zu hoch.
+            
             load = load + math.min(groups * 0.8, 8.0)
         end
 
         local turnState = tonumber(lights.turnLightState or lights.activeTurnLightState or lights.turnLightActiveState or 0) or 0
         if turnState == 1 or turnState == 2 then
-            load = load + 1.0     -- Blinker einseitig: ~1A
+            load = load + 1.0     
         elseif turnState == 3 or turnState == 4 then
-            load = load + 2.0     -- Warnblinker: ~2A
+            load = load + 2.0     
         elseif lights.hazardLightsActive == true or lights.warningLightsActive == true then
             load = load + 2.0
         end
@@ -8438,11 +8370,11 @@ evmGetElectricalLoad = function(vehicle, engineOn)
 
     local beacons = vehicle.spec_beaconLights
     if beacons ~= nil and (beacons.beaconLightsActive == true or beacons.isActive == true) then
-        load = load + 2.0     -- Rundumkennleuchte LED: ~2A (vorher 5A)
+        load = load + 2.0     
     end
 
     if engineOn == true then
-        load = load + 1.5     -- Steuergeräte/ECU bei laufendem Motor (vorher 3A)
+        load = load + 1.5     
     end
 
     return load
@@ -8491,7 +8423,7 @@ evmGetAlternatorVoltage = function(vehicle)
         if ok then rpm = tonumber(r) or 0 end
     end
     local rpmFactor = evmClamp((rpm - 600) / 1400, 0, 1)
-    return 13.6 + rpmFactor * 0.8  -- 13.6V Leerlauf bis 14.4V Vollgas
+    return 13.6 + rpmFactor * 0.8  
 end
 
 local function evmIsIgnoredBatteryVehicle(vehicle)
@@ -8500,7 +8432,7 @@ local function evmIsIgnoredBatteryVehicle(vehicle)
     if name == "Train" or name:lower():find("train", 1, true) ~= nil then
         return true
     end
-    -- Ohne Motorisierung keine echte Fahrzeugbatterie simulieren.
+    
     if vehicle.spec_motorized == nil and vehicle.getIsMotorStarted == nil then
         return true
     end
@@ -8539,23 +8471,21 @@ evmProcessBattery = function(vehicle, spec, dt, source)
     local CAPACITY_AH = 72.0
 
     if engineOn then
-        -- Realistische Lichtmaschine: ~25A Netto-Ladestrom bei Leerlauf,
-        -- bis ~45A bei höherer Drehzahl. Bei 72Ah-Batterie bedeutet das eine
-        -- volle Aufladung von leer in ca. 2-3 Stunden Spielzeit (= realistisch).
+        
         local rpm = 0
         if vehicle.getMotorRpm ~= nil then
             local ok, r = pcall(vehicle.getMotorRpm, vehicle)
             if ok then rpm = tonumber(r) or 0 end
         end
-        -- Drehzahl-abhängige Lichtmaschinen-Leistung: 18A im Stand, 35A bei Volllast
+        
         local rpmFactor = evmClamp((rpm - 600) / 1400, 0, 1)
-        local alternatorCurrent = 18.0 + rpmFactor * 17.0   -- 18-35A
+        local alternatorCurrent = 18.0 + rpmFactor * 17.0   
         local netCurrent = alternatorCurrent - current
         if netCurrent > 0 then
-            -- Sanfte Tapering-Kurve: ab 80% wird das Laden langsamer (echte Akkus)
+            
             local taper = 1.0
             if oldCharge > 0.80 then
-                -- Von 80% bis 100% wird die Ladegeschwindigkeit sanft auf 5% reduziert
+                
                 taper = evmClamp((1.0 - oldCharge) / 0.20, 0.05, 1.0)
             end
             spec.batteryCharge = evmClamp(oldCharge + (netCurrent * elapsedGameHours / CAPACITY_AH) * taper, 0, 1.0)
@@ -8563,8 +8493,6 @@ evmProcessBattery = function(vehicle, spec, dt, source)
             spec.batteryCharge = evmClamp(oldCharge - ((-netCurrent) * elapsedGameHours / CAPACITY_AH), 0, 1.0)
         end
 
-        -- Falls ein extern gestartetes/gerettetes Fahrzeug noch als Batterie-Panne markiert ist,
-        -- gibt die laufende Lichtmaschine die Batterie nach etwas Ladung wieder frei.
         if spec.failureType == "battery" and (spec.batteryCharge or 0) > 0.12 then
             spec.failureType = ""
             spec.failureSeverity = 0
@@ -8576,7 +8504,7 @@ evmProcessBattery = function(vehicle, spec, dt, source)
             if g_server ~= nil and EVMFailureStateEvent ~= nil then
                 EVMFailureStateEvent.sendEvent(vehicle, "", 0, 0, 0, 0)
             end
-            print(string.format("[EVM] Battery recovered on %s charge=%.3f volt=%.2f", tostring(evmGetVehicleName(vehicle)), tonumber(spec.batteryCharge or 0), tonumber(spec.batteryVoltage or 0)))
+            evmPrint(string.format("[EVM] Battery recovered on %s charge=%.3f volt=%.2f", tostring(evmGetVehicleName(vehicle)), tonumber(spec.batteryCharge or 0), tonumber(spec.batteryVoltage or 0)))
         end
     else
         if current <= 0.001 then
@@ -8595,8 +8523,6 @@ evmProcessBattery = function(vehicle, spec, dt, source)
         vehicle:raiseDirtyFlags(spec.dirtyFlag)
     end
 
-    -- MP/Dedi v15: Sync-Filter wieder entschärft.
-    -- v14 war zu streng: dadurch konnten Logs/Sends komplett wegfallen.
     if g_server ~= nil and EVMBatteryStateEvent ~= nil and changed then
         spec._batterySyncTimer = (spec._batterySyncTimer or 0) - realMs
         local lastSyncV = tonumber(spec._batteryLastSyncVoltage) or -999
@@ -8616,15 +8542,11 @@ evmProcessBattery = function(vehicle, spec, dt, source)
         end
     end
 
-    -- Battery tick logging intentionally disabled by default.
-    -- The old v15 debug block printed one line per vehicle every few seconds on servers
-    -- ("[EVM] BATTERY global ..."), which caused heavy log spam.
-    -- It is now only visible when the normal EVM debug mode is explicitly enabled.
     if ExtendedVehicleMaintenance.debug == true then
         spec._batteryDebugTimer = (spec._batteryDebugTimer or 0) - realMs
         if spec._batteryDebugTimer <= 0 then
             spec._batteryDebugTimer = 5000
-            print(string.format("[EVM] BATTERY %s vehicle=%s engine=%s load=%.3fA scale=%.0f elapsedH=%.4f charge %.4f -> %.4f volt=%.2f sync=%s",
+            evmPrint(string.format("[EVM] BATTERY %s vehicle=%s engine=%s load=%.3fA scale=%.0f elapsedH=%.4f charge %.4f -> %.4f volt=%.2f sync=%s",
                 tostring(source or "tick"), tostring(evmGetVehicleName(vehicle)), tostring(engineOn), tonumber(current or 0), tonumber(timeScale or 1), tonumber(elapsedGameHours or 0), tonumber(oldCharge or 0), tonumber(spec.batteryCharge or 0), tonumber(spec.batteryVoltage or 0), tostring(g_server ~= nil and EVMBatteryStateEvent ~= nil)))
         end
     end
@@ -8632,7 +8554,7 @@ evmProcessBattery = function(vehicle, spec, dt, source)
     if not engineOn and (spec.batteryCharge or 1) < 0.04 and (spec.failureType == nil or spec.failureType == "") then
         spec.batteryCharge = 0.0
         spec.batteryVoltage = 6.5 + math.random() * 2.0
-        print(string.format("[EVM] Battery dead on %s (load=%.2fA)", tostring(evmGetVehicleName(vehicle)), tonumber(current or 0)))
+        evmPrint(string.format("[EVM] Battery dead on %s (load=%.2fA)", tostring(evmGetVehicleName(vehicle)), tonumber(current or 0)))
         ExtendedVehicleMaintenance.applyRandomFailure(vehicle, "battery", 1.0)
     end
 end
@@ -8640,36 +8562,32 @@ end
 function ExtendedVehicleMaintenance.getBatteryVoltage(vehicle, spec)
     if spec == nil then return 12.6 end
 
-    -- Batteriepanne: feste Niederspannung
     if spec.failureType == "battery" then
         return evmClamp(tonumber(spec.batteryVoltage) or 8.5, 6.5, 10.5)
     end
 
     local charge = evmClamp(tonumber(spec.batteryCharge) or 1.0, 0, 1)
-    -- Ruhespannung: 11.4V (leer) bis 12.7V (voll geladen)
+    
     local baseV  = 11.4 + charge * 1.3
 
     local engineOn = evmGetEngineOn ~= nil and evmGetEngineOn(vehicle) or false
-    local altV   = evmGetAlternatorVoltage(vehicle)   -- 0 oder 13.6-14.4V
-    local load   = evmGetElectricalLoad(vehicle, engineOn)       -- Ampere
+    local altV   = evmGetAlternatorVoltage(vehicle)   
+    local load   = evmGetElectricalLoad(vehicle, engineOn)       
 
-    -- Spannungsabfall pro Ampere: ~0.022V (Innenwiderstand ~0.02 Ohm)
     local loadDrop = load * 0.022
 
     local voltage
     if altV > 0 then
-        -- Motor laeuft: Lichtmaschine dominiert, Last senkt Spannung leicht
+        
         voltage = altV - loadDrop * 0.5
     else
-        -- Motor aus: Batteriespannung minus Lastabfall
+        
         voltage = baseV - loadDrop
     end
 
-    -- v14 MP-Fix: Kein Zufallsrauschen im gespeicherten Batterie-State.
     return evmClamp(voltage, 6.0, 15.5)
 end
 
--- Rueckwaerts-Kompatibilitaet
 function ExtendedVehicleMaintenance.getBatteryPercent(vehicle, spec)
     local v = ExtendedVehicleMaintenance.getBatteryVoltage(vehicle, spec)
     return evmClamp(((v - 11.4) / 1.3) * 100, 0, 100)
@@ -8725,7 +8643,7 @@ function ExtendedVehicleMaintenance.renderHudIconOverlay(iconName, x, y, w, h, r
 end
 
 function ExtendedVehicleMaintenance.drawVehicleHUDIcon(x, y, w, h, r, g, b, label, textSize, iconName)
-    -- Erst echte DDS-Icons rendern. Falls Overlay in der Engine/Map nicht verfuegbar ist, Text-Fallback.
+    
     if iconName ~= nil and ExtendedVehicleMaintenance.renderHudIconOverlay(iconName, x, y, w, h, r, g, b) then
         return
     end
@@ -8746,7 +8664,6 @@ function ExtendedVehicleMaintenance.drawVehicleHUD(vehicle, spec)
     vehicle = evmNormalizeVehicle(vehicle)
     if vehicle == nil then return end
 
-    -- MP-Fix v9: Immer die Spec vom rootVehicle bevorzugen.
     local rootSpec = evmGetVehicleSpec(vehicle)
     if rootSpec ~= nil then
         spec = rootSpec
@@ -8766,24 +8683,19 @@ function ExtendedVehicleMaintenance.drawVehicleHUD(vehicle, spec)
     local FONT_LBL = 0.0044 * sc
     local totalW = TW * 3 + GAP * 2
 
-    -- Direkt ueber dem Tacho, rechts ausgerichtet.
-    -- Der Tacho-Oberkante liegt je nach Aufloesung bei ~0.46-0.50.
-    -- posX/posY koennen in evm_config.xml fein justiert werden.
     local posX = math.max(0.05, math.min(0.995, tonumber(hud.posX or 0.993) or 0.993))
-    local posY = math.max(0.05, math.min(0.950, tonumber(hud.posY or 0.512) or 0.512))   -- rechter/oberer HUD-Anker
+    local posY = math.max(0.05, math.min(0.950, tonumber(hud.posY or 0.512) or 0.512))   
 
     local baseX = posX - totalW
     local baseY = posY - TH
     ExtendedVehicleMaintenance._hudLastRect = { x=baseX, y=baseY, w=totalW, h=TH }
     ExtendedVehicleMaintenance.updateHudEditMode(baseX, baseY, totalW, TH)
-    -- Nach dem Ziehen sofort mit der neuen Position rendern.
+    
     posX = math.max(0.05, math.min(0.995, tonumber(hud.posX or posX) or posX))
     posY = math.max(0.05, math.min(0.950, tonumber(hud.posY or posY) or posY))
     baseX = posX - totalW
     baseY = posY - TH
 
-    -- Farbe: identisch zum LS25 HUD-Hintergrund (fast schwarz, leicht transparent)
-    -- Gleicher Ton wie Tacho-BG, Getriebe-Panel etc.
     local BG_R,BG_G,BG_B,BG_A = 0.07, 0.07, 0.06, 0.82
 
     local OK_R,OK_G,OK_B = 0.42, 0.85, 0.14
@@ -8834,12 +8746,8 @@ function ExtendedVehicleMaintenance.drawVehicleHUD(vehicle, spec)
     local activeSpec,_ = evmGetActiveServiceSpec(vehicle)
     local failureType  = tostring(spec.failureType or "")
 
-    -- HUD liest die Spannung IMMER frisch berechnet aus dem aktuellen charge-Wert.
-    -- spec.batteryVoltage kann durch Race-Conditions im MP veraltet sein, charge ist via
-    -- onReadUpdateStream + EVMBatteryStateEvent immer aktuell.
     local batV = evmClamp(ExtendedVehicleMaintenance.getBatteryVoltage(vehicle, spec), 6.0, 15.5)
 
-    -- HUD-Debug nur noch bei aktivem evmDebug, damit der Serverlog sauber bleibt.
     if ExtendedVehicleMaintenance.debug == true then
         ExtendedVehicleMaintenance._hudDebugTimer = (ExtendedVehicleMaintenance._hudDebugTimer or 0)
         local nowMs = (g_time or 0)
@@ -8882,14 +8790,11 @@ function ExtendedVehicleMaintenance.drawVehicleHUD(vehicle, spec)
     elseif failureType == "battery"       then br,bg2,bb2 = ER_R,ER_G,ER_B
     end
 
-    -- v18: Schwere-Stufe der Panne als Suffix anzeigen.
-    -- ▼ = minor (klein, evt. selbst behebbar) | leer = major (Standard) | ▲ = critical (nur Werkstatt)
-    -- Bei Limp-Home wird ein "~" angehaengt um zu signalisieren dass die Wirkung halbiert ist.
     if failureType ~= "" and failureType ~= "battery" then
         local tier = ExtendedVehicleMaintenance.getSeverityTier(spec.failureSeverity or 0)
         if tier == ExtendedVehicleMaintenance.SEVERITY_TIER_MINOR then
             engVal = engVal .. " ▼"
-            -- Minor sind weniger dramatisch -> nicht ER, sondern WN-Farbe wenn vorher ER war
+            
             if er2 == ER_R then er2,eg2,eb2 = WN_R,WN_G,WN_B end
         elseif tier == ExtendedVehicleMaintenance.SEVERITY_TIER_CRITICAL then
             engVal = engVal .. " ▲"
@@ -8915,7 +8820,6 @@ function ExtendedVehicleMaintenance.drawVehicleHUD(vehicle, spec)
     resetText()
 end
 
-
 function ExtendedVehicleMaintenance:onDraw(isActiveForInput, isActiveForInputIgnoreSelection, isSelected)
     local spec = evmGetVehicleSpec(self)
     if spec == nil or not self.isClient then return end
@@ -8925,17 +8829,13 @@ function ExtendedVehicleMaintenance:onDraw(isActiveForInput, isActiveForInputIgn
     local hud = ExtendedVehicleMaintenance.hudConfig
     local onlyEntered = hud.onlyWhenEntered
 
-    -- Prüfen ob wir das kontrollierte / eingestiegene Fahrzeug sind
     local controlled = mission.controlledVehicle
     local isControlled = (controlled == self or controlled == (self.rootVehicle or self))
     local isEntered = (self.getIsEntered ~= nil and self:getIsEntered())
 
-    -- Runtime-Spec-Fallback kann ueber rootVehicle laufen; getIsEntered() ist dort nicht immer verlaesslich.
-    -- Darum zaehlt das aktuell kontrollierte Fahrzeug ebenfalls als "eingestiegen".
     if onlyEntered and not (isEntered or isControlled) then return end
     if not isControlled and not isEntered then return end
 
-    -- HUD zeichnen (ersetzt die alten BlinkingWarnings für Daueranzeige)
     if hud.enabled then
         ExtendedVehicleMaintenance.drawVehicleHUD(self, nil)
     end
@@ -8949,10 +8849,7 @@ function ExtendedVehicleMaintenance.installWorkshopPatches()
 end
 
 function ExtendedVehicleMaintenance.injectRuntimeSpecsForLoadedVehicles()
-    -- FS25 1.18 lädt VehicleTypes bereits vor extraSourceFiles. Dadurch ist der Type-Patch
-    -- im Log zwar sichtbar, erzeugt bei vorhandenen Savegame-Fahrzeugen aber keine spec_*-Tabelle.
-    -- Dieser Fallback repariert nur fehlende EVM-Spec-Tabellen auf geladenen Fahrzeugen.
-    -- Er überschreibt keine echte Spezialisierung und läuft auch für später gekaufte Fahrzeuge nach.
+    
     local missing = 0
     local created = 0
 
@@ -8969,13 +8866,11 @@ function ExtendedVehicleMaintenance.injectRuntimeSpecsForLoadedVehicles()
                     ExtendedVehicleMaintenance.onLoad(root, nil)
                 end)
                 if not ok then
-                    print(string.format("[EVM] Runtime-Spec onLoad fehlgeschlagen fuer '%s': %s", tostring(evmGetVehicleName(root)), tostring(err)))
+                    evmPrint(string.format("[EVM] Runtime-Spec onLoad fehlgeschlagen fuer '%s': %s", tostring(evmGetVehicleName(root)), tostring(err)))
                 end
             end
         elseif root ~= nil and root.rootNode ~= nil then
-            -- Spec existiert bereits: falls isServiceActive=true, Lock neu einrichten
-            -- (wichtig fuer MP-Clients die per onReadStream den State empfangen haben
-            --  und danach durch den Scan-Timer nicht zurueckgesetzt werden sollen)
+            
             local existingSpec = evmGetVehicleSpec(root)
             if existingSpec ~= nil and existingSpec.isServiceActive == true then
                 if root._evmHardLockActive ~= true then
@@ -8988,7 +8883,7 @@ function ExtendedVehicleMaintenance.injectRuntimeSpecsForLoadedVehicles()
     end
 
     if missing > 0 or created > 0 then
-        print(string.format("[EVM] Runtime-Spec-Reparatur: missing=%d created=%d mode=runtimeRepairFallback", missing, created))
+        evmPrint(string.format("[EVM] Runtime-Spec-Reparatur: missing=%d created=%d mode=runtimeRepairFallback", missing, created))
     end
 
     return created
@@ -8999,13 +8894,11 @@ function ExtendedVehicleMaintenance:update(dt)
         ExtendedVehicleMaintenance._runtimeSpecsInjected = true
         ExtendedVehicleMaintenance._runtimeSpecScanTimer = 0
         ExtendedVehicleMaintenance.injectRuntimeSpecsForLoadedVehicles()
-        -- MP-FIX: Direkt nach dem ersten Spec-Inject die eigene State-XML einlesen.
-        -- Das ueberschreibt die DEFAULT-Werte mit den tatsaechlich gespeicherten Werten.
-        -- Nur Server tut das, Clients bekommen ihren State per Stream.
+        
         if g_server ~= nil then
             local ok, err = pcall(ExtendedVehicleMaintenance.evmLoadAllVehicleStates)
             if not ok then
-                print(string.format("[EVM] evmLoadAllVehicleStates fehlgeschlagen: %s", tostring(err)))
+                evmPrint(string.format("[EVM] evmLoadAllVehicleStates fehlgeschlagen: %s", tostring(err)))
             end
         end
     end
@@ -9014,8 +8907,7 @@ function ExtendedVehicleMaintenance:update(dt)
     if ExtendedVehicleMaintenance._runtimeSpecScanTimer <= 0 then
         ExtendedVehicleMaintenance._runtimeSpecScanTimer = 2000
         local createdNow = ExtendedVehicleMaintenance.injectRuntimeSpecsForLoadedVehicles()
-        -- Falls neue Fahrzeuge dazugekommen sind (z.B. spaet geladen oder neu gekauft),
-        -- versuche, deren State aus der XML zu restaurieren.
+        
         if g_server ~= nil and createdNow ~= nil and createdNow > 0 then
             pcall(ExtendedVehicleMaintenance.evmLoadAllVehicleStates)
         end
@@ -9035,9 +8927,6 @@ function ExtendedVehicleMaintenance:update(dt)
         return
     end
 
-    -- SP/Runtime-Fallback: Kollisionsschaden auch dann prüfen, wenn die Fahrzeug-Spezialisierung
-    -- bei einem Fahrzeugtyp kein onUpdateTick feuert. Im SP ist mission.controlledVehicle je nach
-    -- Situation nil, obwohl der Spieler im Fahrzeug sitzt. Deshalb nutzen wir zuerst g_localPlayer.
     local collisionVehicle = evmGetCurrentLocalVehicle()
     if collisionVehicle ~= nil then
         ExtendedVehicleMaintenance.processCollisionDamage(collisionVehicle, dt, "globalUpdate")
@@ -9055,11 +8944,10 @@ function ExtendedVehicleMaintenance:update(dt)
                 local okPv, pv = pcall(g_localPlayer.getCurrentVehicle, g_localPlayer)
                 if okPv then playerVehicle = pv end
             end
-            print(string.format("[EVM] CollisionDebug globalUpdate: kein lokales Fahrzeug gefunden controlled=%s current=%s playerVehicle=%s", tostring(evmGetVehicleName(cv)), tostring(evmGetVehicleName(mission.currentVehicle)), tostring(evmGetVehicleName(playerVehicle))))
+            evmPrint(string.format("[EVM] CollisionDebug globalUpdate: kein lokales Fahrzeug gefunden controlled=%s current=%s playerVehicle=%s", tostring(evmGetVehicleName(cv)), tostring(evmGetVehicleName(mission.currentVehicle)), tostring(evmGetVehicleName(playerVehicle))))
         end
     end
 
-    -- Batterie global simulieren: auch geparkte / nicht ausgewählte Fahrzeuge müssen entladen/laden können.
     if g_server ~= nil and evmProcessBattery ~= nil then
         ExtendedVehicleMaintenance._batteryGlobalTimer = (ExtendedVehicleMaintenance._batteryGlobalTimer or 0) - (dt or 0)
         if ExtendedVehicleMaintenance._batteryGlobalTimer <= 0 then
@@ -9079,9 +8967,6 @@ function ExtendedVehicleMaintenance:update(dt)
         end
     end
 
-    -- MP/Dedi-Fix: Zufalls-Pannen global und serverseitig prüfen.
-    -- onUpdateTick ist im Multiplayer nicht zuverlässig genug, weil es je nach Fahrzeug/Owner/Selektion
-    -- nicht dauerhaft für alle Fahrzeuge läuft. Testbefehle funktionierten, aber natürliche Pannen kamen nie.
     if g_server ~= nil then
         ExtendedVehicleMaintenance._breakdownGlobalTimer = (ExtendedVehicleMaintenance._breakdownGlobalTimer or 0) - (dt or 0)
         if ExtendedVehicleMaintenance._breakdownGlobalTimer <= 0 then
@@ -9096,7 +8981,7 @@ function ExtendedVehicleMaintenance:update(dt)
                     local rSpec = evmGetVehicleSpec(root)
                     if rSpec ~= nil then
                         ExtendedVehicleMaintenance.updateBreakdownRisk(root, rSpec, stepDt, "global")
-                        -- v18: Limp-Home Ablauf pruefen damit Severity zurueckkommt
+                        
                         if ExtendedVehicleMaintenance.updateLimpHomeExpiry ~= nil then
                             ExtendedVehicleMaintenance.updateLimpHomeExpiry(root, rSpec)
                         end
@@ -9112,13 +8997,11 @@ function ExtendedVehicleMaintenance:update(dt)
     end
     ExtendedVehicleMaintenance.globalWorkshopActionTimer = ExtendedVehicleMaintenance.GLOBAL_ACTION_UPDATE_INTERVAL
 
-    -- Charge-Action soll immer verfügbar sein (auch ohne Werkstatt in der Nähe).
     ExtendedVehicleMaintenance.ensureChargeActionRegistered()
     ExtendedVehicleMaintenance.refreshGlobalChargeAction()
 
     if mission.controlledVehicle ~= nil then
-        -- Auch wenn man in einem Fahrzeug sitzt: prüfen ob angehängte Geräte wartbar sind.
-        -- In diesem Fall den globalen Event trotzdem anbieten (Traktor+Gerät gemeinsam servicieren).
+        
         local controlled = mission.controlledVehicle.rootVehicle or mission.controlledVehicle
         local hasImplements = false
         if controlled.getAttachedImplements ~= nil then
@@ -9136,7 +9019,7 @@ function ExtendedVehicleMaintenance:update(dt)
             ExtendedVehicleMaintenance.removeGlobalWorkshopAction()
             return
         end
-        -- Hat Geräte → weiter mit normalem Flow (sellingPoint = controlledVehicle)
+        
     end
 
     if g_gui ~= nil and g_gui.currentGui ~= nil then
@@ -9167,7 +9050,7 @@ end
 
 function ExtendedVehicleMaintenance:loadMap(name)
     if ExtendedVehicleMaintenance.debug == true or ExtendedVehicleMaintenance.COLLISION_DEBUG == true then
-        print(string.format("[EVM] loadMap active - collisionDamage debug=%s minSpeed=%.1f km/h", tostring(ExtendedVehicleMaintenance.COLLISION_DEBUG), ExtendedVehicleMaintenance.COLLISION_MIN_SPEED_KMH or 5.0))
+        evmPrint(string.format("[EVM] loadMap active - collisionDamage debug=%s minSpeed=%.1f km/h", tostring(ExtendedVehicleMaintenance.COLLISION_DEBUG), ExtendedVehicleMaintenance.COLLISION_MIN_SPEED_KMH or 5.0))
     end
     ExtendedVehicleMaintenance.loadConfig()
     ExtendedVehicleMaintenance.registerGlobalSavegameXMLPaths()
@@ -9210,34 +9093,25 @@ function ExtendedVehicleMaintenance:deleteMap()
     ExtendedVehicleMaintenance.restoreRuntimeHooks()
 end
 
--- ============================================================================
--- MP-FIX: Eigene State-Persistenz fuer alle EVM-Fahrzeuge
--- ============================================================================
--- Hintergrund: FS25 1.18 laedt VehicleTypes vor extraSourceFiles, sodass die
--- EVM-Spezialisierung bei Fahrzeugen, die zum Savegame-Load-Zeitpunkt schon
--- existieren, NICHT ueber die normale Spec-Pipeline aktiv wird. Folge:
---   1) saveToXMLFile wird vom Spiel fuer diese Fahrzeuge nicht aufgerufen
---   2) onLoad wird nur durch unseren Runtime-Repair mit savegame=nil getriggert
--- -> Service-Zeiten gehen beim MP-Neustart verloren (immer zurueck auf Default).
---
--- Loesung: Wir fuehren eine eigene XML-Datei (evm_vehicleStates.xml) im
--- Savegame-Ordner, in der wir den State aller Fahrzeuge unter einer stabilen
--- ID (configFileName + savegameId/uniqueId) selbst persistieren.
--- Diese XML wird beim Speichern UND zyklisch geschrieben und beim Laden
--- direkt nach injectRuntimeSpecsForLoadedVehicles eingelesen.
--- ============================================================================
-
 local function evmGetVehicleStatesFileName()
     return evmGetPersistDir() .. "/evm_vehicleStates.xml"
 end
 
--- Eindeutiger Key pro Fahrzeug: bevorzugt savegameId, sonst Kombi aus
--- configFileName + ownerFarmId + spawnIndex.
 local function evmGetVehicleStateKey(vehicle)
     if vehicle == nil then return nil end
     local v = vehicle.rootVehicle or vehicle
 
-    -- 1) FS25 Savegame-ID (stabilste Variante)
+    
+    
+    local spec = evmGetVehicleSpec(v)
+    if spec ~= nil then
+        local iid = evmEnsureVehicleInstanceId(v, spec)
+        if iid ~= nil and tostring(iid) ~= "" then
+            local safeId = tostring(iid):gsub("[^%w_%-]", "_")
+            return "iid_" .. safeId
+        end
+    end
+
     local sid = nil
     if v.getCurrentSavegameId ~= nil then
         local ok, id = pcall(v.getCurrentSavegameId, v)
@@ -9250,22 +9124,20 @@ local function evmGetVehicleStateKey(vehicle)
         return string.format("sid_%d", sid)
     end
 
-    -- 2) Fallback: configFileName + ownerFarmId + xmlFileName-Hash
+    
+    
+    
     local cfg = tostring(v.configFileName or "")
     local xml = tostring(v.xmlFileName or "")
     local farm = evmGetOwnerFarmIdSafe(v)
     if cfg == "" and xml == "" then return nil end
-    -- Sehr einfacher String-Hash (sum modulo) - reicht zur Trennung
+
     local h = 0
     local combined = cfg .. "|" .. xml
     for i = 1, #combined do h = (h * 31 + string.byte(combined, i)) % 2147483647 end
     return string.format("cfg_%d_%d", farm, h)
 end
 
-
--- MP/SP Neustart-Fix: aktive Wartungen nach Savegame-Reload wieder in die
--- Runtime/Locks aufnehmen und serverseitig fertigstellen, auch wenn das Fahrzeug
--- nur ueber die Runtime-Spec-Reparatur existiert und kein normales onUpdateTick feuert.
 function ExtendedVehicleMaintenance.evmRestoreActiveServiceRuntime(rootVehicle, spec, source)
     if rootVehicle == nil or spec == nil or spec.isServiceActive ~= true then
         return false
@@ -9282,7 +9154,7 @@ function ExtendedVehicleMaintenance.evmRestoreActiveServiceRuntime(rootVehicle, 
 
     if remaining <= 0 then
         if ExtendedVehicleMaintenance.finishService ~= nil then
-            print(string.format("[EVM] restored service already finished vehicle=%s source=%s", tostring(evmGetVehicleName(rootVehicle)), tostring(source or "unknown")))
+            evmPrint(string.format("[EVM] restored service already finished vehicle=%s source=%s", tostring(evmGetVehicleName(rootVehicle)), tostring(source or "unknown")))
             ExtendedVehicleMaintenance.finishService(rootVehicle)
         end
         return true
@@ -9302,8 +9174,7 @@ function ExtendedVehicleMaintenance.evmRestoreActiveServiceRuntime(rootVehicle, 
     ExtendedVehicleMaintenance.installGlobalInputLocks()
 
     local runtime = ExtendedVehicleMaintenance.getRuntime()
-    -- Die Runtime ist historisch single-service. Beim Reload setzen wir sie auf
-    -- das erste aktive Fahrzeug, damit alte Codepfade/Broadcasts weiter funktionieren.
+    
     if runtime.active ~= true or runtime.rootVehicle == nil or runtime.rootVehicle == rootVehicle then
         runtime.active = true
         runtime.mode = spec.serviceMode
@@ -9328,7 +9199,7 @@ function ExtendedVehicleMaintenance.evmRestoreActiveServiceRuntime(rootVehicle, 
         ExtendedVehicleMaintenance.broadcastServiceState(rootVehicle, true)
     end
 
-    print(string.format("[EVM] restored active service vehicle=%s remainingMs=%s source=%s", tostring(evmGetVehicleName(rootVehicle)), tostring(math.floor(remaining)), tostring(source or "unknown")))
+    evmPrint(string.format("[EVM] restored active service vehicle=%s remainingMs=%s source=%s", tostring(evmGetVehicleName(rootVehicle)), tostring(math.floor(remaining)), tostring(source or "unknown")))
     return true
 end
 
@@ -9372,8 +9243,6 @@ function ExtendedVehicleMaintenance.evmUpdateLoadedServices(dt)
             end
         end
 
-        -- Dedizierte Server werden oft hart neu gestartet. Darum bei laufender
-        -- Wartung zyklisch die eigene EVM-State-Datei aktualisieren, nicht nur beim Save-Hook.
         ExtendedVehicleMaintenance._lastVehicleStateAutoSaveMs = ExtendedVehicleMaintenance._lastVehicleStateAutoSaveMs or 0
         if (g_time or 0) - ExtendedVehicleMaintenance._lastVehicleStateAutoSaveMs > 30000 then
             ExtendedVehicleMaintenance._lastVehicleStateAutoSaveMs = g_time or 0
@@ -9385,9 +9254,7 @@ function ExtendedVehicleMaintenance.evmUpdateLoadedServices(dt)
 end
 
 function ExtendedVehicleMaintenance.evmSaveAllVehicleStates()
-    -- Nur Server/Host speichert. Clients duerfen das nicht, sonst wird der
-    -- State eines Clients in den Server-Ordner geschrieben (gibt es im MP ohnehin nicht,
-    -- aber im SP-Mode wo isServer immer true ist, ist es egal).
+    
     if g_server == nil and g_currentMission ~= nil and g_currentMission.getIsServer ~= nil then
         local ok, isS = pcall(g_currentMission.getIsServer, g_currentMission)
         if ok and not isS then return false end
@@ -9397,7 +9264,7 @@ function ExtendedVehicleMaintenance.evmSaveAllVehicleStates()
     local fileName = evmGetVehicleStatesFileName()
     local xmlId = createXMLFile("evmVehicleStates", fileName, "evmVehicleStates")
     if xmlId == nil or xmlId == 0 then
-        print(string.format("[EVM] evmSaveAllVehicleStates: createXMLFile failed: %s", tostring(fileName)))
+        evmPrint(string.format("[EVM] evmSaveAllVehicleStates: createXMLFile failed: %s", tostring(fileName)))
         return false
     end
 
@@ -9411,6 +9278,7 @@ function ExtendedVehicleMaintenance.evmSaveAllVehicleStates()
             if spec ~= nil and key ~= nil then
                 local base = string.format("evmVehicleStates.vehicle(%d)", idx)
                 setXMLString(xmlId, base .. "#key", key)
+                setXMLString(xmlId, base .. "#evmInstanceId", tostring(evmEnsureVehicleInstanceId(root, spec) or ""))
                 setXMLString(xmlId, base .. "#configFileName", tostring(root.configFileName or ""))
                 setXMLString(xmlId, base .. "#xmlFileName", tostring(root.xmlFileName or ""))
                 setXMLString(xmlId, base .. "#typeName", tostring(root.typeName or ""))
@@ -9447,7 +9315,7 @@ function ExtendedVehicleMaintenance.evmSaveAllVehicleStates()
         delete(xmlId)
     end)
 
-    print(string.format("[EVM] evmSaveAllVehicleStates: saved=%d ok=%s file=%s", saved, tostring(okSave), tostring(fileName)))
+    evmPrint(string.format("[EVM] evmSaveAllVehicleStates: saved=%d ok=%s file=%s", saved, tostring(okSave), tostring(fileName)))
     return okSave == true
 end
 
@@ -9461,7 +9329,6 @@ function ExtendedVehicleMaintenance.evmLoadAllVehicleStates()
     local xmlId = loadXMLFile("evmVehicleStates", fileName)
     if xmlId == nil or xmlId == 0 then return 0 end
 
-    -- Erst alle Eintraege in eine Tabelle einlesen
     local entries = {}
     local idx = 0
     while true do
@@ -9470,6 +9337,7 @@ function ExtendedVehicleMaintenance.evmLoadAllVehicleStates()
         if key == nil then break end
         table.insert(entries, {
             key = key,
+            evmInstanceId = getXMLString(xmlId, base .. "#evmInstanceId") or "",
             configFileName = getXMLString(xmlId, base .. "#configFileName") or "",
             xmlFileName = getXMLString(xmlId, base .. "#xmlFileName") or "",
             typeName = getXMLString(xmlId, base .. "#typeName") or "",
@@ -9496,17 +9364,21 @@ function ExtendedVehicleMaintenance.evmLoadAllVehicleStates()
     end
     delete(xmlId)
 
-    -- Index: key -> entry, configFileName -> entry (Fallback)
     local byKey = {}
+    local byInstanceId = {}
     local byCfg = {}
     for _, e in ipairs(entries) do
         byKey[e.key] = e
+        if e.evmInstanceId ~= nil and tostring(e.evmInstanceId) ~= "" then
+            byInstanceId[tostring(e.evmInstanceId)] = e
+        end
         if e.configFileName ~= "" then
-            byCfg[e.configFileName .. "|" .. tostring(e.ownerFarmId)] = e
+            local cfgKey = e.configFileName .. "|" .. tostring(e.ownerFarmId)
+            byCfg[cfgKey] = byCfg[cfgKey] or {}
+            table.insert(byCfg[cfgKey], e)
         end
     end
 
-    -- Auf alle Fahrzeuge anwenden
     local applied = 0
     for _, vehicle in ipairs(evmCollectMissionVehicles()) do
         local root = evmNormalizeVehicle(vehicle) or vehicle
@@ -9517,14 +9389,65 @@ function ExtendedVehicleMaintenance.evmLoadAllVehicleStates()
             end
             if spec ~= nil then
                 local k = evmGetVehicleStateKey(root)
-                local entry = (k ~= nil and byKey[k]) or nil
+                local currentInstanceId = evmGetVehicleInstanceId(root)
+                local entry = (currentInstanceId ~= nil and currentInstanceId ~= "" and byInstanceId[currentInstanceId]) or (k ~= nil and byKey[k]) or nil
                 if entry == nil then
-                    -- Fallback: configFileName + farm
                     local cfg = tostring(root.configFileName or "")
                     local farm = evmGetOwnerFarmIdSafe(root)
-                    entry = byCfg[cfg .. "|" .. tostring(farm)]
+                    local candidates = byCfg[cfg .. "|" .. tostring(farm)]
+                    if candidates ~= nil then
+                        local candidate = nil
+                        if #candidates == 1 then
+                            candidate = candidates[1]
+                        else
+                            
+                            
+                            local vehicleOpMs = evmGetOperatingTimeMs(root) or 0
+                            local bestDiff = math.huge
+                            local bestCount = 0
+                            for _, c in ipairs(candidates) do
+                                if c.operatingTimeMs ~= nil and c.operatingTimeMs > 0 and vehicleOpMs > 0 then
+                                    local diff = math.abs(vehicleOpMs - c.operatingTimeMs)
+                                    local threshold = math.max(5000, c.operatingTimeMs * 0.02)
+                                    if diff <= threshold then
+                                        if diff < bestDiff then
+                                            bestDiff = diff
+                                            candidate = c
+                                            bestCount = 1
+                                        elseif diff == bestDiff then
+                                            bestCount = bestCount + 1
+                                        end
+                                    end
+                                end
+                            end
+                            if bestCount ~= 1 then
+                                candidate = nil
+                            end
+                        end
+
+                        if candidate ~= nil then
+                            if #candidates > 1 and candidate.isServiceActive == true and (candidate.evmInstanceId == nil or tostring(candidate.evmInstanceId) == "") then
+                                candidate = nil
+                            end
+                            if candidate ~= nil and candidate.operatingTimeMs ~= nil and candidate.operatingTimeMs > 0 then
+                                local vehicleOpMs = evmGetOperatingTimeMs(root) or 0
+                                local diff = math.abs(vehicleOpMs - candidate.operatingTimeMs)
+                                local threshold = math.max(5000, candidate.operatingTimeMs * 0.02)
+                                if diff <= threshold then
+                                    entry = candidate
+                                end
+                            elseif candidate ~= nil and #candidates == 1 and (candidate.operatingTimeMs == nil or candidate.operatingTimeMs == 0) then
+                                entry = candidate
+                            end
+                        end
+                    end
                 end
                 if entry ~= nil and not spec._evmStateRestored then
+                    if entry.evmInstanceId ~= nil and tostring(entry.evmInstanceId) ~= "" then
+                        spec.evmInstanceId = tostring(entry.evmInstanceId)
+                    else
+                        evmEnsureVehicleInstanceId(root, spec)
+                    end
                     if entry.hoursPool ~= nil then spec.hoursPool = entry.hoursPool end
                     if entry.daysPool ~= nil then spec.daysPool = entry.daysPool end
                     if entry.lastServiceOperatingTimeMs ~= nil then spec.lastServiceOperatingTimeMs = entry.lastServiceOperatingTimeMs end
@@ -9544,7 +9467,7 @@ function ExtendedVehicleMaintenance.evmLoadAllVehicleStates()
                     evmMigrateMaintenanceIntervalToOperatingHours(spec, root, "evm_vehicleStates")
                     spec._evmStateRestored = true
                     applied = applied + 1
-                    -- Dirty-Flag setzen damit der Client beim naechsten Stream den State bekommt
+                    
                     if root.raiseDirtyFlags ~= nil and spec.dirtyFlag ~= nil then
                         pcall(root.raiseDirtyFlags, root, spec.dirtyFlag)
                     end
@@ -9556,11 +9479,10 @@ function ExtendedVehicleMaintenance.evmLoadAllVehicleStates()
         end
     end
 
-    print(string.format("[EVM] evmLoadAllVehicleStates: entries=%d applied=%d", #entries, applied))
+    evmPrint(string.format("[EVM] evmLoadAllVehicleStates: entries=%d applied=%d", #entries, applied))
     return applied
 end
 
--- Save-Hook: FSBaseMission.saveSavegame -> nach Vanilla-Save auch eigene XML schreiben
 if FSBaseMission ~= nil and FSBaseMission.saveSavegame ~= nil and not ExtendedVehicleMaintenance._saveHookInstalled then
     ExtendedVehicleMaintenance._saveHookInstalled = true
     local _evmOrigSaveSavegame = FSBaseMission.saveSavegame
@@ -9568,17 +9490,15 @@ if FSBaseMission ~= nil and FSBaseMission.saveSavegame ~= nil and not ExtendedVe
         local result = _evmOrigSaveSavegame(self, ...)
         local ok, err = pcall(ExtendedVehicleMaintenance.evmSaveAllVehicleStates)
         if not ok then
-            print(string.format("[EVM] evmSaveAllVehicleStates fehlgeschlagen: %s", tostring(err)))
+            evmPrint(string.format("[EVM] evmSaveAllVehicleStates fehlgeschlagen: %s", tostring(err)))
         end
         return result
     end
-    print("[EVM] Save-Hook auf FSBaseMission.saveSavegame installiert")
+    evmPrint("[EVM] Save-Hook auf FSBaseMission.saveSavegame installiert")
 end
 
--- Auto-Save Hook: Manche Server schreiben ueber andere Pfade. Wir hooken
--- zusaetzlich auf MissionInfo.saveToXMLFile, damit auch Auto-Saves erfasst werden.
-if g_savegameXML == nil then  -- nur einmal
-    -- nichts zu tun, der FSBaseMission-Hook reicht in den meisten Faellen
+if g_savegameXML == nil then  
+    
 end
 
 local evmOldTypeManagerFinalizeTypes = TypeManager.finalizeTypes
@@ -9596,9 +9516,8 @@ function TypeManager:finalizeTypes(typeName, types, specializations, vehicleSpec
     return result
 end
 
-
 function ExtendedVehicleMaintenance.drawFromMissionHook(mission)
-    -- 3D/World marker deaktiviert: keine Mission-draw-Hooks mehr notwendig.
+    
 end
 
 ExtendedVehicleMaintenance._initialized = true

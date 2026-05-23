@@ -1,3 +1,11 @@
+local EVM_SILENT_LOGS = true
+local evmOriginalPrint = print
+local function evmPrint(...)
+    if not EVM_SILENT_LOGS then
+        evmOriginalPrint(...)
+    end
+end
+
 EVMStartServiceEvent = {}
 local EVMStartServiceEvent_mt = Class(EVMStartServiceEvent, Event)
 InitEventClass(EVMStartServiceEvent, "EVMStartServiceEvent")
@@ -39,7 +47,7 @@ function EVMStartServiceEvent:run(connection)
 
     local plan = ExtendedVehicleMaintenance.buildServicePlan(rootVehicle, serviceMode)
     if plan == nil or plan.entries == nil or #plan.entries == 0 then
-        print(string.format("[EVM] EVMStartServiceEvent: no valid service plan for vehicle=%s mode=%s", tostring(rootVehicle), tostring(serviceMode)))
+        evmPrint(string.format("[EVM] EVMStartServiceEvent: no valid service plan for vehicle=%s mode=%s", tostring(rootVehicle), tostring(serviceMode)))
         return
     end
 
@@ -69,10 +77,7 @@ function EVMStartServiceEvent.sendEvent(vehicle, serviceMode)
     local mode = serviceMode or 1
 
     if g_server ~= nil then
-        -- Auf dem Listen-Host (g_server + g_client): Lock sofort lokal
-        -- setzen bevor tryStartService den Workshop-Reset macht.
-        -- Verhindert das Race-Fenster zwischen Dialog-Bestaetigung und
-        -- dem Moment wo enforceRuntimeState die Locks installiert.
+        
         if g_client ~= nil then
             if ExtendedVehicleMaintenance.installEnterLock ~= nil then
                 pcall(ExtendedVehicleMaintenance.installEnterLock, rootVehicle, mode)
@@ -87,7 +92,7 @@ function EVMStartServiceEvent.sendEvent(vehicle, serviceMode)
 
         local plan = ExtendedVehicleMaintenance.buildServicePlan(rootVehicle, mode)
         if plan == nil or plan.entries == nil or #plan.entries == 0 then
-            print(string.format("[EVM] EVMStartServiceEvent.sendEvent: no valid service plan for vehicle=%s mode=%s", tostring(rootVehicle), tostring(mode)))
+            evmPrint(string.format("[EVM] EVMStartServiceEvent.sendEvent: no valid service plan for vehicle=%s mode=%s", tostring(rootVehicle), tostring(mode)))
             return
         end
 
@@ -107,10 +112,7 @@ function EVMStartServiceEvent.sendEvent(vehicle, serviceMode)
             plan.durationGameMs or 0
         )
     else
-        -- MP-Fix: Lock SOFORT lokal auf dem Client installieren, noch bevor
-        -- das Event den Server erreicht. Ohne das gibt es ein Race-Fenster
-        -- (50-500ms) in dem der Spieler noch einsteigen kann.
-        -- Der Server bestaetigt den Lock kurz danach via EVMServiceStateEvent.
+        
         if ExtendedVehicleMaintenance.installEnterLock ~= nil then
             pcall(ExtendedVehicleMaintenance.installEnterLock, rootVehicle, mode)
         end
@@ -127,9 +129,7 @@ function EVMStartServiceEvent.sendEvent(vehicle, serviceMode)
         end
     end
 end
--- Server -> Clients: expliziter Service-State Sync.
--- Wichtig fuer MP/DEDIs, weil der normale Vehicle-DirtyFlag-Stream bei
--- Runtime-Specs oder nach Workshop-Reset nicht immer rechtzeitig auf Clients ankommt.
+
 EVMServiceStateEvent = {}
 local EVMServiceStateEvent_mt = Class(EVMServiceStateEvent, Event)
 InitEventClass(EVMServiceStateEvent, "EVMServiceStateEvent")
@@ -177,11 +177,6 @@ function EVMServiceStateEvent:run(connection)
         return
     end
 
-    -- MP-Fix: Auf dem reinen Server (Dedi) ohne g_client darf das Event nicht
-    -- nochmal angewendet werden, weil applyServiceState dort schon gelaufen ist.
-    -- Auf einem Listen-Host (g_server + g_client) und auf reinen Clients muss
-    -- receiveServiceStateFromServer aber laufen, damit lokale Locks/Countdown
-    -- richtig installiert werden.
     if g_server ~= nil and g_client == nil then
         return
     end
@@ -204,29 +199,18 @@ function EVMServiceStateEvent.sendEvent(vehicle, isActive, serviceMode, remainin
         return
     end
 
-    -- WICHTIG MP-Fix: NICHT 'vehicle' als 4. Argument an broadcastEvent uebergeben.
-    -- Das vierte Argument ist der "ghost object" Filter und sorgt dafuer, dass das
-    -- Event nur an Clients gesendet wird, die das Objekt als Ghost geladen haben.
-    -- Direkt nach einem Workshop-Reset oder wenn der Stream nach Spec-Aenderung
-    -- noch nicht fertig ist, fehlt das Vehicle bei einigen Clients - dann wird
-    -- das Event still verworfen und Clients bekommen keinen Lock/Countdown.
-    -- broadcastEvent(event, sendLocal=false, ignoreConnection=nil) reicht voellig.
     local event = EVMServiceStateEvent.new(vehicle, isActive, serviceMode, remainingMs, endAbsHours, hoursAdded, daysAdded)
     local ok, err = pcall(function()
         g_server:broadcastEvent(event, false, nil)
     end)
     if not ok then
-        print("[EVM] EVMServiceStateEvent broadcast failed: " .. tostring(err))
+        evmPrint("[EVM] EVMServiceStateEvent broadcast failed: " .. tostring(err))
         pcall(function()
             g_server:broadcastEvent(event)
         end)
     end
 end
 
-
--- Client -> Server: Failure anfordern/loeschen.
--- Der normale ConsoleCommand laeuft im MP auf dem Client lokal. Reifen/Motor/Notlauf
--- muessen aber serverseitig gesetzt werden, sonst sehen die Clients keinen echten Effekt.
 EVMFailureEvent = {}
 local EVMFailureEvent_mt = Class(EVMFailureEvent, Event)
 InitEventClass(EVMFailureEvent, "EVMFailureEvent")
@@ -274,7 +258,7 @@ function EVMFailureEvent:run(connection)
         if ExtendedVehicleMaintenance.broadcastFailureState ~= nil then
             ExtendedVehicleMaintenance.broadcastFailureState(rootVehicle)
         end
-        print(string.format("[EVM] MP failure cleared vehicle=%s", tostring(rootVehicle)))
+        evmPrint(string.format("[EVM] MP failure cleared vehicle=%s", tostring(rootVehicle)))
         return
     end
 
@@ -283,13 +267,13 @@ function EVMFailureEvent:run(connection)
         failureType = ExtendedVehicleMaintenance.normalizeFailureType(failureType) or failureType
     end
 
-    print(string.format("[EVM] MP failure request received vehicle=%s type=%s severity=%.2f clear=%s", tostring(rootVehicle), tostring(failureType), tonumber(self.severity or 0.9), tostring(self.clearFailure)))
+    evmPrint(string.format("[EVM] MP failure request received vehicle=%s type=%s severity=%.2f clear=%s", tostring(rootVehicle), tostring(failureType), tonumber(self.severity or 0.9), tostring(self.clearFailure)))
 
     local ok = false
     if ExtendedVehicleMaintenance.applyRandomFailure ~= nil then
         ok = ExtendedVehicleMaintenance.applyRandomFailure(rootVehicle, failureType, self.severity or 0.9) == true
     end
-    print(string.format("[EVM] MP failure apply result vehicle=%s type=%s ok=%s", tostring(rootVehicle), tostring(failureType), tostring(ok)))
+    evmPrint(string.format("[EVM] MP failure apply result vehicle=%s type=%s ok=%s", tostring(rootVehicle), tostring(failureType), tostring(ok)))
     if ok and ExtendedVehicleMaintenance.broadcastFailureState ~= nil then
         ExtendedVehicleMaintenance.broadcastFailureState(rootVehicle)
     end
@@ -323,7 +307,7 @@ function EVMFailureEvent.sendEvent(vehicle, failureType, severity, clearFailure)
 
     local connection = g_client ~= nil and g_client:getServerConnection() or nil
     if connection ~= nil then
-        -- Sofort lokales HUD/visuelle Effekte clearen; der Server bestaetigt danach per StateEvent.
+        
         if clear and ExtendedVehicleMaintenance.receiveFailureStateFromServer ~= nil then
             ExtendedVehicleMaintenance.receiveFailureStateFromServer(rootVehicle, "", 0, 0, 0, 0)
         end
@@ -334,9 +318,6 @@ function EVMFailureEvent.sendEvent(vehicle, failureType, severity, clearFailure)
     return false
 end
 
--- Server -> Clients: expliziter Failure-State Sync.
--- DirtyFlags reichen bei Runtime-Specs/kurz nach Join nicht immer, und fuer Reifen/Notlauf
--- sollen die lokalen Hooks sofort auf jedem Client installiert werden.
 EVMFailureStateEvent = {}
 local EVMFailureStateEvent_mt = Class(EVMFailureStateEvent, Event)
 InitEventClass(EVMFailureStateEvent, "EVMFailureStateEvent")
@@ -404,17 +385,13 @@ function EVMFailureStateEvent.sendEvent(vehicle, failureType, severity, wheelInd
         g_server:broadcastEvent(event, false, nil)
     end)
     if not ok then
-        print("[EVM] EVMFailureStateEvent broadcast failed: " .. tostring(err))
+        evmPrint("[EVM] EVMFailureStateEvent broadcast failed: " .. tostring(err))
         pcall(function()
             g_server:broadcastEvent(event)
         end)
     end
 end
 
-
--- Server -> Clients: expliziter Batterie-State Sync.
--- Der normale DirtyFlag-Stream ist fuer kleine, haeufige Batteriewert-Aenderungen
--- im MP/Dedi nicht immer sichtbar genug. Dieses Event aktualisiert HUD/Startblocker direkt.
 EVMBatteryStateEvent = {}
 local EVMBatteryStateEvent_mt = Class(EVMBatteryStateEvent, Event)
 InitEventClass(EVMBatteryStateEvent, "EVMBatteryStateEvent")
@@ -478,18 +455,13 @@ function EVMBatteryStateEvent.sendEvent(vehicle, charge, voltage, failureType, f
         g_server:broadcastEvent(event, false, nil)
     end)
     if not ok then
-        print("[EVM] EVMBatteryStateEvent broadcast failed: " .. tostring(err))
+        evmPrint("[EVM] EVMBatteryStateEvent broadcast failed: " .. tostring(err))
         pcall(function()
             g_server:broadcastEvent(event)
         end)
     end
 end
 
--- ===========================================================================
--- EVMChargeBatteryEvent: Client -> Server
--- Wird vom Client gesendet wenn der Spieler "Batterie laden" auswählt.
--- Server validiert (Geld vorhanden, Batterie wirklich leer) und startet Vorgang.
--- ===========================================================================
 EVMChargeBatteryEvent = {}
 local EVMChargeBatteryEvent_mt = Class(EVMChargeBatteryEvent, Event)
 InitEventClass(EVMChargeBatteryEvent, "EVMChargeBatteryEvent")
@@ -518,7 +490,7 @@ function EVMChargeBatteryEvent:run(connection)
     if self.vehicle == nil or ExtendedVehicleMaintenance == nil then
         return
     end
-    -- Nur Server verarbeitet das Event
+    
     if g_server ~= nil and ExtendedVehicleMaintenance.applyBatteryCharging ~= nil then
         ExtendedVehicleMaintenance.applyBatteryCharging(self.vehicle)
     end
@@ -527,28 +499,22 @@ end
 function EVMChargeBatteryEvent.sendEvent(vehicle)
     if vehicle == nil then return end
     if g_server ~= nil then
-        -- Auf dem Server: direkt verarbeiten (kein Event nötig)
+        
         if ExtendedVehicleMaintenance.applyBatteryCharging ~= nil then
             ExtendedVehicleMaintenance.applyBatteryCharging(vehicle)
         end
     elseif g_client ~= nil then
-        -- Auf dem Client: Event an Server schicken
+        
         local event = EVMChargeBatteryEvent.new(vehicle)
         local ok, err = pcall(function()
             g_client:getServerConnection():sendEvent(event)
         end)
         if not ok then
-            print("[EVM] EVMChargeBatteryEvent send failed: " .. tostring(err))
+            evmPrint("[EVM] EVMChargeBatteryEvent send failed: " .. tostring(err))
         end
     end
 end
 
--- v16: Multiplayer-Kollisionsschaden.
--- Im MP läuft die Kollisionserkennung clientseitig (nur dort kennt das Spiel die echte
--- Geschwindigkeit/Position des gesteuerten Fahrzeugs). setDamageAmount muss aber vom
--- Server kommen, sonst wird der Schaden über die Damage-Streams weggeschrieben oder
--- gar nicht gesetzt. Der Client schickt dieses Event an den Server, der Server appliziert
--- den Schaden und FS25 broadcastet ihn anschließend automatisch über den DamageState.
 EVMCollisionDamageEvent = {}
 local EVMCollisionDamageEvent_mt = Class(EVMCollisionDamageEvent, Event)
 InitEventClass(EVMCollisionDamageEvent, "EVMCollisionDamageEvent")
@@ -561,7 +527,7 @@ end
 function EVMCollisionDamageEvent.new(vehicle, addDamage)
     local self = EVMCollisionDamageEvent.emptyNew()
     self.vehicle = vehicle
-    -- addDamage als 0..1 Float; serverseitig nochmals geclamped.
+    
     self.addDamage = math.max(0, math.min(1, tonumber(addDamage) or 0))
     return self
 end
@@ -578,7 +544,7 @@ function EVMCollisionDamageEvent:writeStream(streamId, connection)
 end
 
 function EVMCollisionDamageEvent:run(connection)
-    -- Server-only Handler: nur der Server appliziert Schaden und delegiert das Sync.
+    
     if g_server == nil then return end
     if self.vehicle == nil or not self.vehicle:getIsSynchronized() then return end
     if ExtendedVehicleMaintenance == nil then return end
@@ -586,12 +552,9 @@ function EVMCollisionDamageEvent:run(connection)
     local rootVehicle = self.vehicle.rootVehicle or self.vehicle
     local addDamage = math.max(0, math.min(1, tonumber(self.addDamage) or 0))
 
-    -- Sicherheits-Cap pro Event: kein Client darf >25% Schaden in einem Event setzen.
-    -- Das schützt vor manipulierten Clients und schlechten Detection-Werten.
     if addDamage > 0.25 then addDamage = 0.25 end
     if addDamage <= 0.0005 then return end
 
-    -- Sanity: kein Schaden während aktiver Wartung
     local spec = nil
     if ExtendedVehicleMaintenance.getVehicleSpec ~= nil then
         spec = ExtendedVehicleMaintenance.getVehicleSpec(rootVehicle)
@@ -600,7 +563,6 @@ function EVMCollisionDamageEvent:run(connection)
     end
     if spec ~= nil and spec.isServiceActive == true then return end
 
-    -- Rate-Limit: nicht öfter als alle 800ms pro Fahrzeug akzeptieren (Anti-Spam).
     local now = g_time or 0
     if spec ~= nil then
         if spec.evmCollisionLastServerApply ~= nil and (now - spec.evmCollisionLastServerApply) < 800 then
@@ -631,7 +593,7 @@ function EVMCollisionDamageEvent:run(connection)
     end
 
     if ExtendedVehicleMaintenance.COLLISION_DEBUG == true or ExtendedVehicleMaintenance.debug == true then
-        print(string.format(
+        evmPrint(string.format(
             "[EVM] MP CollisionDamageEvent applied vehicle=%s add=%.3f%% %.2f%% -> %.2f%% applied=%s",
             tostring(rootVehicle), addDamage * 100, currentDamage * 100, newDamage * 100, tostring(applied)))
     end
@@ -643,7 +605,6 @@ function EVMCollisionDamageEvent.sendEvent(vehicle, addDamage)
     local d = math.max(0, math.min(1, tonumber(addDamage) or 0))
     if d <= 0.0005 then return false end
 
-    -- Auf dem Listen-Host (g_server + g_client): direkt anwenden, kein Round-Trip.
     if g_server ~= nil then
         local spec = rootVehicle.spec_extendedVehicleMaintenance
         if spec ~= nil and spec.isServiceActive == true then return false end
@@ -669,7 +630,6 @@ function EVMCollisionDamageEvent.sendEvent(vehicle, addDamage)
         return applied
     end
 
-    -- Reiner Client: Event an Server schicken. Server validiert + appliziert + broadcastet.
     if g_client == nil then return false end
     local connection = g_client:getServerConnection()
     if connection == nil then return false end
@@ -677,14 +637,12 @@ function EVMCollisionDamageEvent.sendEvent(vehicle, addDamage)
         connection:sendEvent(EVMCollisionDamageEvent.new(rootVehicle, d))
     end)
     if not ok then
-        print("[EVM] EVMCollisionDamageEvent send failed: " .. tostring(err))
+        evmPrint("[EVM] EVMCollisionDamageEvent send failed: " .. tostring(err))
         return false
     end
     return true
 end
 
--- v18: Quick-Fix / Limp-Home Anfrage vom Client an den Server.
--- action = 1 -> applyQuickFix, action = 2 -> applyLimpHome
 EVMQuickFixEvent = {}
 local EVMQuickFixEvent_mt = Class(EVMQuickFixEvent, Event)
 InitEventClass(EVMQuickFixEvent, "EVMQuickFixEvent")
@@ -719,7 +677,6 @@ function EVMQuickFixEvent:run(connection)
 
     local rootVehicle = self.vehicle.rootVehicle or self.vehicle
 
-    -- Berechtigungs-Check: nur eigener Hof-Spieler darf Quick-Fix ausloesen.
     if connection ~= nil and connection.getUserId ~= nil and rootVehicle.getOwnerFarmId ~= nil then
         local ok1, ownerFarm = pcall(rootVehicle.getOwnerFarmId, rootVehicle)
         if ok1 and ownerFarm ~= nil and ownerFarm ~= 0 and g_currentMission ~= nil and g_currentMission.userManager ~= nil then
@@ -727,7 +684,7 @@ function EVMQuickFixEvent:run(connection)
             if user ~= nil and user.getFarmId ~= nil then
                 local farmId = user:getFarmId()
                 if farmId ~= ownerFarm and not (user.getIsMasterUser ~= nil and user:getIsMasterUser() == true) then
-                    print(string.format("[EVM] EVMQuickFixEvent denied: user farm=%s vehicle owner=%s", tostring(farmId), tostring(ownerFarm)))
+                    evmPrint(string.format("[EVM] EVMQuickFixEvent denied: user farm=%s vehicle owner=%s", tostring(farmId), tostring(ownerFarm)))
                     return
                 end
             end
@@ -760,7 +717,7 @@ function EVMQuickFixEvent.sendEvent(vehicle, action)
         conn:sendEvent(EVMQuickFixEvent.new(rootVehicle, act))
     end)
     if not ok then
-        print("[EVM] EVMQuickFixEvent send failed: " .. tostring(err))
+        evmPrint("[EVM] EVMQuickFixEvent send failed: " .. tostring(err))
         return false
     end
     return true
